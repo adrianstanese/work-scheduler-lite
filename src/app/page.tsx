@@ -779,6 +779,113 @@ function Landing({onCreateCompany,onAccessCompany,onDeleteCompany,recentCompanie
         </div>
       </div>
 
+      {/* ── Schedule Mockup Preview ── */}
+      <div style={{
+        borderRadius:G.rL,background:th.card,border:`1px solid ${th.gbd}`,
+        boxShadow:th.cardS,backdropFilter:G.blur,WebkitBackdropFilter:G.blur,
+        padding:16,marginBottom:24,overflow:"hidden",
+      }}>
+        <div style={{textAlign:"center",marginBottom:10}}>
+          <div style={{fontSize:13,fontWeight:800,color:th.tx}}>
+            {lang==="ro"?"Aprilie 2026":"April 2026"}
+          </div>
+          <div style={{fontSize:9,color:th.t3,marginTop:2}}>
+            {lang==="ro"?"Exemplu de program completat":"Sample filled schedule"}
+          </div>
+        </div>
+        {(()=>{
+          const mockRO=[
+            {n:"Maria P.",r:"BARISTA",c:"#3b6de6",shifts:[{d:1,s:"Dimineață",sc:"#3b6de6"},{d:2,s:"Dimineață",sc:"#3b6de6"},{d:3,l:"CO"},{d:4,s:"Seara",sc:"#059669"},{d:5,s:"Seara",sc:"#059669"}]},
+            {n:"Ion D.",r:"BARISTA",c:"#f97316",shifts:[{d:1,s:"Seara",sc:"#059669"},{d:2,l:"CM"},{d:3,s:"Dimineață",sc:"#3b6de6"},{d:4,s:"Dimineață",sc:"#3b6de6"},{d:7,s:"Noapte",sc:"#7c3aed"}]},
+            {n:"Ana V.",r:"SERVER",c:"#ec4899",shifts:[{d:1,s:"Noapte",sc:"#7c3aed"},{d:2,s:"Seara",sc:"#059669"},{d:3,s:"Seara",sc:"#059669"},{d:5,s:"Dimineață",sc:"#3b6de6"},{d:6,s:"Dimineață",sc:"#3b6de6"}]},
+            {n:"Gheo M.",r:"SERVER",c:"#10b981",shifts:[{d:2,s:"Dimineață",sc:"#3b6de6"},{d:3,s:"Noapte",sc:"#7c3aed"},{d:4,s:"Noapte",sc:"#7c3aed"},{d:5,s:"Seara",sc:"#059669"},{d:6,s:"Seara",sc:"#059669"}]},
+          ];
+          const mockEN=[
+            {n:"Maria P.",r:"BARISTA",c:"#3b6de6",shifts:[{d:1,s:"Morning",sc:"#3b6de6"},{d:2,s:"Morning",sc:"#3b6de6"},{d:3,l:"PTO"},{d:4,s:"Evening",sc:"#059669"},{d:5,s:"Evening",sc:"#059669"}]},
+            {n:"Ion D.",r:"BARISTA",c:"#f97316",shifts:[{d:1,s:"Evening",sc:"#059669"},{d:2,l:"Sick"},{d:3,s:"Morning",sc:"#3b6de6"},{d:4,s:"Morning",sc:"#3b6de6"},{d:7,s:"Night",sc:"#7c3aed"}]},
+            {n:"Ana V.",r:"SERVER",c:"#ec4899",shifts:[{d:1,s:"Night",sc:"#7c3aed"},{d:2,s:"Evening",sc:"#059669"},{d:3,s:"Evening",sc:"#059669"},{d:5,s:"Morning",sc:"#3b6de6"},{d:6,s:"Morning",sc:"#3b6de6"}]},
+            {n:"Gheo M.",r:"SERVER",c:"#10b981",shifts:[{d:2,s:"Morning",sc:"#3b6de6"},{d:3,s:"Night",sc:"#7c3aed"},{d:4,s:"Night",sc:"#7c3aed"},{d:5,s:"Evening",sc:"#059669"},{d:6,s:"Evening",sc:"#059669"}]},
+          ];
+          const mock=lang==="ro"?mockRO:mockEN;
+          const dayNames=lang==="ro"?["L","M","M","J","V","S","D"]:["M","T","W","T","F","S","S"];
+          const holDay=lang==="ro"?"Paște":"Easter";
+          return <div style={{overflowX:"auto"}}>
+            <div style={{minWidth:380}}>
+              {/* Day header */}
+              <div style={{display:"grid",gridTemplateColumns:"80px repeat(7,1fr)",gap:1,marginBottom:2}}>
+                <div style={{fontSize:8,color:th.t3,padding:"2px 4px"}}>{lang==="ro"?"Angajați":"Employees"}</div>
+                {[1,2,3,4,5,6,7].map(d=><div key={d} style={{
+                  fontSize:8,fontWeight:600,textAlign:"center",padding:"2px 0",
+                  color:d>=6?th.holTx:th.t3,
+                }}>{dayNames[d-1]} {d}</div>)}
+              </div>
+              {/* Employee rows */}
+              {(()=>{
+                let lastRole="";
+                return mock.map((emp,idx)=>{
+                  const showRole=emp.r!==lastRole;
+                  lastRole=emp.r;
+                  return <Fragment key={idx}>
+                    {showRole&&<div style={{
+                      fontSize:7,fontWeight:800,color:th.ac,textTransform:"uppercase",
+                      padding:"3px 4px",background:th.acS,borderRadius:4,marginBottom:1,marginTop:idx>0?4:0,
+                      letterSpacing:"0.05em",
+                    }}>{emp.r}</div>}
+                    <div style={{display:"grid",gridTemplateColumns:"80px repeat(7,1fr)",gap:1,marginBottom:1}}>
+                      <div style={{display:"flex",alignItems:"center",gap:4,padding:"3px 4px"}}>
+                        <div style={{width:16,height:16,borderRadius:6,background:`linear-gradient(135deg,${emp.c},${emp.c}88)`,
+                          display:"flex",alignItems:"center",justifyContent:"center",
+                          fontSize:7,fontWeight:700,color:"#fff",flexShrink:0}}>
+                          {emp.n.charAt(0)}
+                        </div>
+                        <span style={{fontSize:9,fontWeight:600,color:th.tx,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{emp.n}</span>
+                      </div>
+                      {[1,2,3,4,5,6,7].map(d=>{
+                        const shift=emp.shifts.find(s=>s.d===d);
+                        const isWeekend=d>=6;
+                        if(!shift) return <div key={d} style={{
+                          borderRadius:4,minHeight:22,
+                          background:isWeekend?th.holBg:"transparent",
+                          border:`0.5px solid ${th.bd2}`,
+                        }}/>;
+                        if(shift.l) return <div key={d} style={{
+                          borderRadius:4,minHeight:22,
+                          background:shift.l==="CO"||shift.l==="PTO"?"rgba(34,197,94,0.12)":"rgba(239,68,68,0.1)",
+                          border:`0.5px solid ${shift.l==="CO"||shift.l==="PTO"?"rgba(34,197,94,0.3)":"rgba(239,68,68,0.2)"}`,
+                          display:"flex",alignItems:"center",justifyContent:"center",
+                        }}>
+                          <span style={{fontSize:7,fontWeight:700,fontStyle:"italic",
+                            color:shift.l==="CO"||shift.l==="PTO"?"#059669":"#dc2626"}}>{shift.l}</span>
+                        </div>;
+                        return <div key={d} style={{
+                          borderRadius:4,minHeight:22,background:shift.sc,
+                          display:"flex",alignItems:"center",justifyContent:"center",
+                        }}>
+                          <span style={{fontSize:6,fontWeight:600,color:"#fff"}}>{shift.s}</span>
+                        </div>;
+                      })}
+                    </div>
+                  </Fragment>;
+                });
+              })()}
+              {/* Legend */}
+              <div style={{display:"flex",gap:8,justifyContent:"center",marginTop:8,flexWrap:"wrap"}}>
+                {[
+                  {c:"#3b6de6",l:lang==="ro"?"Dimineață":"Morning"},
+                  {c:"#059669",l:lang==="ro"?"Seara":"Evening"},
+                  {c:"#7c3aed",l:lang==="ro"?"Noapte":"Night"},
+                ].map(({c:co,l},i)=><span key={i} style={{display:"flex",alignItems:"center",gap:3,fontSize:8,color:th.t2}}>
+                  <div style={{width:6,height:6,borderRadius:2,background:co}}/>{l}
+                </span>)}
+                <span style={{display:"flex",alignItems:"center",gap:3,fontSize:8,color:th.t2}}>
+                  <div style={{width:6,height:6,borderRadius:2,background:"rgba(34,197,94,0.3)",border:"0.5px solid rgba(34,197,94,0.5)"}}/>{lang==="ro"?"Concediu":"Leave"}
+                </span>
+              </div>
+            </div>
+          </div>;
+        })()}
+      </div>
+
       {/* ── Recent Companies ── */}
       {recentCompanies.length>0 && <div>
         <h3 style={{fontSize:12,fontWeight:700,color:th.t3,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:10}}>{t.recentCompanies}</h3>
