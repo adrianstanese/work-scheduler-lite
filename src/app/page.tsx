@@ -632,30 +632,7 @@ function Toast({msg,type="ok",th}){
   }}>{msg}</div>;
 }
 
-// ─── LEAVE HELP TOOLTIP ──────────────────────────────────────
-function LeaveHelpTooltip({leaves,th}){
-  const [show,setShow]=useState(false);
-  return <div style={{display:"inline-flex",justifyContent:"center",marginTop:4}}>
-    <div onClick={()=>setShow(true)} style={{
-      width:20,height:20,borderRadius:10,background:show?th.ac:th.t3+"30",
-      display:"flex",alignItems:"center",justifyContent:"center",
-      cursor:"pointer",fontSize:11,fontWeight:800,color:show?"#fff":th.t3,
-      border:`1px solid ${show?th.ac:th.t3+"40"}`,transition:"all 0.15s",
-    }}>?</div>
-    <Modal open={show} onClose={()=>setShow(false)} title="Legendă Concedii" th={th}>
-      <div style={{display:"flex",flexDirection:"column",gap:4}}>
-        {leaves.map(lv=><div key={lv.id} style={{
-          display:"flex",alignItems:"center",gap:8,padding:"6px 8px",
-          borderRadius:G.rXs,background:lv.color+"10",border:`1px solid ${lv.color}25`,
-        }}>
-          <div style={{width:12,height:12,borderRadius:4,background:lv.color,flexShrink:0}}/>
-          <span style={{fontSize:12,fontWeight:800,color:lv.color,width:40,flexShrink:0}}>{lv.short}</span>
-          <span style={{fontSize:12,color:th.tx,flex:1}}>{lv.name}</span>
-        </div>)}
-      </div>
-    </Modal>
-  </div>;
-}
+// ─── LANDING PAGE
 // ─── LANDING PAGE ─────────────────────────────────────────────
 function Landing({onCreateCompany,onAccessCompany,onDeleteCompany,recentCompanies,th,t,lang,setLang,theme,setTheme}){
   const [showCreate,setShowCreate]=useState(false);
@@ -1297,6 +1274,7 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
   const [showAddShift,setShowAddShift]=useState(false);
   const [showShare,setShowShare]=useState(false);
   const [showAdminSettings,setShowAdminSettings]=useState(false);
+  const [showLeaveLegend,setShowLeaveLegend]=useState(false);
   const [editCompanyName,setEditCompanyName]=useState("");
   const [editCompanyCountry,setEditCompanyCountry]=useState("");
   const [editOpDays,setEditOpDays]=useState({});
@@ -1830,7 +1808,14 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
                   </div>;
                 })}
               </div>
-              {(company.leaves||[]).length>0&&<LeaveHelpTooltip leaves={company.leaves||[]} th={th}/>}
+              {(company.leaves||[]).length>0&&<div style={{display:"flex",justifyContent:"center",marginTop:4}}>
+              <div onClick={()=>setShowLeaveLegend(true)} style={{
+                width:20,height:20,borderRadius:10,background:th.t3+"30",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                cursor:"pointer",fontSize:11,fontWeight:800,color:th.t3,
+                border:`1px solid ${th.t3}40`,
+              }}>?</div>
+            </div>}
             </div>
           </div>
         </div>
@@ -2359,6 +2344,21 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
         <GBtn primary th={th} onClick={addLeave} disabled={!newLeaveName.trim()}>
           <Icons.Plus s={14} c="#fff"/> {t.save}
         </GBtn>
+      </div>
+    </Modal>
+
+    {/* LEAVE LEGEND MODAL */}
+    <Modal open={showLeaveLegend} onClose={()=>setShowLeaveLegend(false)} title="Legendă Concedii" th={th}>
+      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+        {(company.leaves||[]).map(lv=><div key={lv.id} style={{
+          display:"flex",alignItems:"center",gap:10,padding:"8px 10px",
+          borderRadius:G.rXs,background:lv.color+"10",border:`1px solid ${lv.color}25`,
+        }}>
+          <div style={{width:14,height:14,borderRadius:5,background:lv.color,flexShrink:0,
+            boxShadow:`0 0 6px ${lv.color}40`}}/>
+          <span style={{fontSize:13,fontWeight:800,color:lv.color,width:44,flexShrink:0}}>{lv.short}</span>
+          <span style={{fontSize:13,color:th.tx,flex:1}}>{lv.name}</span>
+        </div>)}
       </div>
     </Modal>
 
