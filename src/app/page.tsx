@@ -168,7 +168,7 @@ const TX = {
     getStarted:"Creează compania ta pentru a începe",
     orAccess:"Sau accesează o companie existentă",
     features:"Funcționalități",
-    f1:"Până la 25 angajați",f2:"25 tipuri de ture",f3:"Sărbători din 52 de țări",
+    f1:"Până la 25 angajați",f2:"25 tipuri de ture",f3:"Sărbători legale RO",
     f4:"Programare drag & drop",f5:"Link-uri individuale angajați",f6:"Fără cont necesar",
     recentCompanies:"Companii Recente",
     adminSettings:"Setări Companie",deleteCompany:"Șterge Compania",
@@ -419,7 +419,6 @@ const db = {
   del(k) { try { localStorage.removeItem("wsl_"+k) } catch {} },
 };
 
-// API sync layer — persists company data to Neon Postgres
 const api = {
   async loadCompany(id, pin) {
     try {
@@ -788,7 +787,7 @@ function Landing({onCreateCompany,onAccessCompany,onDeleteCompany,recentCompanie
       {recentCompanies.length===0&&<div style={{marginTop:20}}>
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
           {[
-            {ic:"👥",tx:t.f1},{ic:"🔄",tx:t.f2},{ic:"🌍",tx:t.f3},
+            {ic:"👥",tx:t.f1},{ic:"🔄",tx:t.f2},{ic:"🇷🇴",tx:t.f3},
             {ic:"📋",tx:t.f4},{ic:"🔗",tx:t.f5},{ic:"🔓",tx:t.f6},
           ].map((f,i)=><GCard key={i} th={th} style={{padding:"14px 10px",textAlign:"center"}}>
             <div style={{fontSize:22,marginBottom:4}}>{f.ic}</div>
@@ -2451,20 +2450,17 @@ export default function App(){
     const memberId=params.get("member");
     if(cId){
       if(memberId){
-        // Member access — load from API, no PIN needed
         api.loadMember(cId,memberId).then(data=>{
           if(data){
             setCompany({...data,id:cId});
             setMemberEmpId(memberId);
             setScreen("member");
           } else {
-            // Fallback to local
             const stored=db.get("company_"+cId);
             if(stored){setCompany(stored);setMemberEmpId(memberId);setScreen("member");}
           }
         });
       } else {
-        // Admin — needs PIN, just show landing (user will enter PIN)
         const stored=db.get("company_"+cId);
         if(stored){setCompany(stored);setScreen("workspace");}
       }
@@ -2473,7 +2469,8 @@ export default function App(){
 
   const handleCreateCompany=(comp)=>{
     db.set("company_"+comp.id,comp);
-    api.createCompany(comp); // async save to DB
+    api.createCompany(comp);
+    // Save to recent
     const r=[{id:comp.id,name:comp.name,country:comp.country,pin:comp.pin,empCount:0},...recentCompanies.filter(x=>x.id!==comp.id)].slice(0,10);
     setRecentCompanies(r);db.set("recent",r);
     setCompany(comp);setScreen("workspace");
@@ -2481,7 +2478,6 @@ export default function App(){
   };
 
   const handleAccessCompany=async(id,pin)=>{
-    // Try API first, fallback to localStorage
     const remote=await api.loadCompany(id,pin);
     if(remote){
       const comp={...remote,id,pin};
@@ -2490,7 +2486,6 @@ export default function App(){
       window.history.replaceState(null,"",`?company=${id}&role=admin`);
       return;
     }
-    // Fallback to local
     const stored=db.get("company_"+id);
     if(stored&&stored.pin===pin){
       setCompany(stored);setScreen("workspace");
@@ -2501,7 +2496,8 @@ export default function App(){
   const handleUpdateCompany=(updated)=>{
     setCompany(updated);
     db.set("company_"+updated.id,updated);
-    api.updateCompany(updated); // async save to DB
+    api.updateCompany(updated);
+    // Update recent
     const r=recentCompanies.map(x=>x.id===updated.id?{...x,empCount:updated.employees.length}:x);
     setRecentCompanies(r);db.set("recent",r);
   };
