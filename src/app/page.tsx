@@ -178,6 +178,70 @@ const TX = {
     leaves:"Concedii",addLeave:"Creează Concediu",leaveName:"Tip concediu",
     noLeaves:"Niciun concediu încă",leaveTypes:"Tipuri de Concediu",
   },
+  en:{
+    appName:"WorkSchedulerLite",tagline:"Simple staff scheduling for small companies",
+    createCompany:"Create Company",joinCompany:"Access Company",companyName:"Company Name",
+    country:"Country",
+    monFri:"Monday – Friday",allWeek:"All week (Mon–Sun)",
+    operatingDays:"Operating Days",workingHours:"Work Schedule",
+    closed:"Closed",allDay:"All day",
+    create:"Create",adminPin:"Admin PIN",enterPin:"Enter admin PIN",
+    access:"Access",enterCode:"Enter company code",
+    employees:"Employees",shifts:"Shifts",calendar:"Calendar",
+    addEmployee:"Add Employee",addShift:"Create Shift",
+    empName:"Employee name",empRole:"Role (optional)",empHours:"Hours/day",
+    contracted:"Contracted",allocated:"Allocated",ptoDays:"PTO days/year",ptoRemaining:"PTO Remaining",ptoUsed:"PTO Used",
+    startDate:"Start date",endDate:"Last working day",terminateEmp:"Terminate contract",terminated:"Terminated",active:"Active",terminateConfirm:"Confirm contract termination for",
+    uncoveredDays:"Uncovered Days",noneUncovered:"All working days are covered!",
+    coverageReport:"Coverage Report",
+    shiftName:"Shift name",startTime:"Start time",endTime:"End time",
+    save:"Save",cancel:"Cancel",delete:"Delete",edit:"Edit",
+    today:"Today",month:"Month",week:"Week",
+    prevMonth:"Previous month",nextMonth:"Next month",
+    hours:"hours",hoursWeek:"hours/week",overtime:"Overtime",
+    conflict:"Conflict",noShifts:"No shifts yet",noEmployees:"No employees yet",
+    assignShift:"Select an employee, then a shift, then click on calendar days",
+    removeShift:"Right-click or long press to remove",
+    shareLink:"Share Link",adminLink:"Admin Link",memberLink:"Employee Link",
+    copied:"Copied!",copyLink:"Copy link",
+    yourSchedule:"Your Schedule",teamSchedule:"Team Schedule",
+    selectShift:"Select a shift to assign",
+    clearDay:"Clear day",
+    weeklyHours:"Weekly Hours",totalHours:"Total Hours",
+    export:"Export",print:"Print",settings:"Settings",
+    about:"About",holiday:"Holiday",nonWorking:"Non-working day",
+    copyWeek:"Copy Week",weekCopied:"Schedule copied!",
+    maxShifts:"Maximum 25 shifts reached",maxEmps:"Maximum 25 employees reached",
+    confirmDelete:"Are you sure you want to delete?",
+    qrCode:"QR Code",scanToAccess:"Scan to access the schedule",
+    back:"Back",close:"Close",
+    scheduleFor:"Schedule for",
+    mon:"Mon",tue:"Tue",wed:"Wed",thu:"Thu",fri:"Fri",sat:"Sat",sun:"Sun",
+    monFull:"Monday",tueFull:"Tuesday",wedFull:"Wednesday",
+    thuFull:"Thursday",friFull:"Friday",satFull:"Saturday",sunFull:"Sunday",
+    jan:"January",feb:"February",mar:"March",apr:"April",may:"May",jun:"June",
+    jul:"July",aug:"August",sep:"September",oct:"October",nov:"November",dec:"December",
+    theme:"Theme",language:"Language",
+    poweredBy:"Built with care for teams that value simplicity",
+    dragDrop:"Click on calendar days to assign",
+    summary:"Summary",overview:"Overview",
+    totalShifts:"Total Shifts",avgHours:"Avg Hours/Week",
+    coverage:"Coverage",
+    noSchedule:"No shifts assigned yet",
+    welcome:"Welcome to WorkSchedulerLite",
+    getStarted:"Create your company to get started",
+    orAccess:"Or access an existing company",
+    features:"Features",
+    f1:"Up to 25 employees",f2:"25 shift types",f3:"Romanian public holidays",
+    f4:"CSV, Excel, PDF export",f5:"Individual employee links",f6:"PIN-secured access",
+    recentCompanies:"Recent Companies",
+    adminSettings:"Company Settings",deleteCompany:"Delete Company",
+    confirmDeleteCompany:"Are you sure? All data will be deleted.",
+    normalHours:"Normal Hours",overtimeHours:"Overtime Hours",holidayHours:"Holiday Hours (x2)",
+    companySettings:"Settings",
+    leaves:"Leaves",addLeave:"Create Leave",leaveName:"Leave type",
+    noLeaves:"No leaves yet",leaveTypes:"Leave Types",
+  },
 };
 
 // ─── HOLIDAY DATABASE (52 Countries) ──────────────────────────
@@ -418,44 +482,11 @@ const db = {
   set(k,v) { try { localStorage.setItem("wsl_"+k,JSON.stringify(v)) } catch {} },
   del(k) { try { localStorage.removeItem("wsl_"+k) } catch {} },
 };
-
 const api = {
-  async loadCompany(id, pin) {
-    try {
-      const r = await fetch(`/api/company?id=${id}&pin=${encodeURIComponent(pin)}`);
-      const j = await r.json();
-      if (j.ok) return j.company;
-      return null;
-    } catch { return null; }
-  },
-  async loadMember(id, memberId) {
-    try {
-      const r = await fetch(`/api/company?id=${id}&member=${memberId}`);
-      const j = await r.json();
-      if (j.ok) return j.company;
-      return null;
-    } catch { return null; }
-  },
-  async createCompany(company) {
-    try {
-      const { id, pin, ...data } = company;
-      await fetch("/api/company", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, pin, ...data }),
-      });
-    } catch {}
-  },
-  async updateCompany(company) {
-    try {
-      const { id, pin, ...data } = company;
-      await fetch("/api/company", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, pin, ...data }),
-      });
-    } catch {}
-  },
+  async loadCompany(id, pin) { try { const r=await fetch(`/api/company?id=${id}&pin=${encodeURIComponent(pin)}`);const j=await r.json();return j.ok?j.company:null } catch { return null } },
+  async loadMember(id, memberId) { try { const r=await fetch(`/api/company?id=${id}&member=${memberId}`);const j=await r.json();return j.ok?j.company:null } catch { return null } },
+  async createCompany(c) { try { const{id,pin,...d}=c;await fetch("/api/company",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,pin,...d})}) } catch {} },
+  async updateCompany(c) { try { const{id,pin,...d}=c;await fetch("/api/company",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,pin,...d})}) } catch {} },
 };
 
 // ─── ICONS (SVG inline) ───────────────────────────────────────
@@ -690,7 +721,19 @@ function Landing({onCreateCompany,onAccessCompany,onDeleteCompany,recentCompanie
         </div>
         <span style={{fontSize:18,fontWeight:800,color:th.tx,letterSpacing:"-0.02em"}}>{t.appName}</span>
       </div>
-      <ThemeSwitcher theme={theme} setTheme={setTheme} th={th}/>
+      <div style={{display:"flex",gap:6,alignItems:"center"}}>
+        <div style={{display:"inline-flex",borderRadius:10,overflow:"hidden",border:`1px solid ${th.bd}`}}>
+          <button onClick={()=>setLang("ro")} style={{
+            padding:"5px 10px",border:"none",cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:F,
+            background:lang==="ro"?th.ac:"transparent",color:lang==="ro"?"#fff":th.t3,transition:"all 0.15s",
+          }}>🇷🇴 RO</button>
+          <button onClick={()=>setLang("en")} style={{
+            padding:"5px 10px",border:"none",cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:F,
+            background:lang==="en"?th.ac:"transparent",color:lang==="en"?"#fff":th.t3,transition:"all 0.15s",
+          }}>🇬🇧 EN</button>
+        </div>
+        <ThemeSwitcher theme={theme} setTheme={setTheme} th={th}/>
+      </div>
     </header>
 
     <div style={{maxWidth:540,margin:"0 auto",padding:"40px 24px 40px"}}>
@@ -2438,7 +2481,7 @@ export default function App(){
   const [recentCompanies,setRecentCompanies]=useState(()=>db.get("recent")||[]);
 
   const th=TH[theme]||TH.light;
-  const t=TX.ro;
+  const t=TX[lang]||TX.ro;
 
   useEffect(()=>{db.set("theme",theme)},[theme]);
   useEffect(()=>{db.set("lang",lang)},[lang]);
@@ -2448,21 +2491,17 @@ export default function App(){
     const params=new URLSearchParams(window.location.search);
     const cId=params.get("company");
     const memberId=params.get("member");
+    const role=params.get("role");
     if(cId){
-      if(memberId){
-        api.loadMember(cId,memberId).then(data=>{
-          if(data){
-            setCompany({...data,id:cId});
-            setMemberEmpId(memberId);
-            setScreen("member");
-          } else {
-            const stored=db.get("company_"+cId);
-            if(stored){setCompany(stored);setMemberEmpId(memberId);setScreen("member");}
-          }
-        });
-      } else {
-        const stored=db.get("company_"+cId);
-        if(stored){setCompany(stored);setScreen("workspace");}
+      const stored=db.get("company_"+cId);
+      if(stored){
+        setCompany(stored);
+        if(memberId){
+          setMemberEmpId(memberId);
+          setScreen("member");
+        } else {
+          setScreen("workspace");
+        }
       }
     }
   },[]);
@@ -2477,15 +2516,7 @@ export default function App(){
     window.history.replaceState(null,"",`?company=${comp.id}&role=admin`);
   };
 
-  const handleAccessCompany=async(id,pin)=>{
-    const remote=await api.loadCompany(id,pin);
-    if(remote){
-      const comp={...remote,id,pin};
-      db.set("company_"+id,comp);
-      setCompany(comp);setScreen("workspace");
-      window.history.replaceState(null,"",`?company=${id}&role=admin`);
-      return;
-    }
+  const handleAccessCompany=(id,pin)=>{
     const stored=db.get("company_"+id);
     if(stored&&stored.pin===pin){
       setCompany(stored);setScreen("workspace");
