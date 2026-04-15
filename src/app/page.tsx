@@ -1123,9 +1123,14 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
           {t.employees}
         </div>
         {/* Day headers */}
-        {dayCols.map(({d,dow,isNonWorking,hol})=><div key={d} style={{
-          padding:"2px 0",borderBottom:`2px solid ${th.bd}`,textAlign:"center",
-          background:isNonWorking?th.holBg+"80":"transparent",
+        {dayCols.map(({d,dow,isNonWorking,hol})=>{
+          const isTodayH=isToday(d);
+          const isWeekendH=dow>=5;
+          const isSundayH=dow===6;
+          return <div key={d} style={{
+          padding:"2px 0",borderBottom:isTodayH?`3px solid ${th.ac}`:`2px solid ${th.bd}`,textAlign:"center",
+          background:isTodayH?th.ac+"12":(isNonWorking?th.holBg+"80":(isWeekendH?th.t3+"08":"transparent")),
+          borderRight:isSundayH?`2px dashed ${th.bd}`:`none`,
         }}>
           <div style={{fontSize:9,fontWeight:600,color:isNonWorking?th.holTx:th.t3,lineHeight:1}}>
             {dayNamesShort[dow]}
@@ -1134,7 +1139,7 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
             {d}
           </div>
           {hol&&<div style={{fontSize:6,color:th.holTx,lineHeight:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",padding:"0 1px"}}>{hol}</div>}
-        </div>)}
+        </div>;})}
         {/* Total col header */}
         <div style={{padding:"4px 2px",borderBottom:`2px solid ${th.bd}`,textAlign:"center",fontSize:9,fontWeight:700,color:th.t3}}>
           Total
@@ -1206,15 +1211,20 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
               const empActive=isEmpActiveOnDate(emp.id,date);
               const canClick=isAdmin&&empActive&&(selectedShift||selectedLeave)&&(selectedEmp===emp.id||!selectedEmp);
 
+              const isTodayCol=isToday(d);
+              const isWeekend=dow>=5;
+              const isSunday=dow===6;
               return <div key={d}
                 onClick={()=>empActive&&handleCellClick(date,emp.id)}
                 onContextMenu={e=>empActive?handleRightClick(e,date,emp.id):e.preventDefault()}
                 title={!empActive?(emp.startDate&&date<emp.startDate?"Înainte de angajare":"După încetare"):hol||""}
                 style={{
-                  padding:2,borderRight:`1px solid ${th.bd2}`,
-                  background:!empActive?th.t3+"12":(isNonWorking?th.holBg:(leave?leave.color+"12":"transparent")),
+                  padding:2,
+                  borderRight:isSunday?`2px dashed ${th.bd}`:`1px solid ${th.bd2}`,
+                  background:!empActive?th.t3+"12":(isTodayCol?th.ac+"0A":(isWeekend&&!isNonWorking?th.t3+"06":(isNonWorking?th.holBg:(leave?leave.color+"12":"transparent")))),
                   cursor:canClick?"pointer":"default",
                   display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+                  boxShadow:isTodayCol?`inset 0 0 0 1px ${th.ac}25`:"none",
                   gap:1,minHeight:40,transition:"background 0.1s",
                   opacity:empActive?1:0.3,
                   pointerEvents:empActive?"auto":"none",
@@ -2068,29 +2078,34 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
             isAdmin={true} filterEmpId={null} th={th} t={t}
           />
 
-          {/* ── Embedded KPI Glass Bar ── */}
-          {company.employees.length>0&&<div style={{
-            display:"flex",gap:8,marginTop:14,padding:"10px 12px",
-            borderRadius:G.rS,background:th.gbg,border:`1px solid ${th.gbd}`,
-            backdropFilter:G.blurS,WebkitBackdropFilter:G.blurS,
-          }}>
-            {(()=>{
-              const totalWorked=Object.values(empMonthHoursDetail).reduce((s,d)=>s+d.total,0);
-              const totalContracted=Object.values(empContractedHours).reduce((s,v)=>s+v,0);
-              const totalOT=Object.values(empMonthHoursDetail).reduce((s,d)=>s+d.overtime,0);
-              const totalHol=Object.values(empMonthHoursDetail).reduce((s,d)=>s+d.holiday,0);
-              const util=totalContracted>0?Math.round(totalWorked/totalContracted*100):0;
-              return [{v:`${util}%`,l:"Utilizare",c:util>=90?th.ok:util>=70?th.warn:th.er},
-                {v:formatHours(totalOT)+"h",l:"OT",c:totalOT>0?th.warn:th.ok},
-                {v:formatHours(totalHol)+"h",l:"Sărbători",c:totalHol>0?"#d946ef":th.t3},
-                {v:company.employees.filter(e=>e.status!=="terminated").length,l:"Activi",c:th.ac},
-              ].map((kpi,i)=><div key={i} style={{flex:1,textAlign:"center",
-                borderRight:i<3?`1px solid ${th.bd2}`:"none",paddingRight:i<3?8:0}}>
+          {/* ── Embedded KPI Glass Bar with animated counters + thresholds ── */}
+          {company.employees.length>0&&(()=>{
+            const totalWorked=Object.values(empMonthHoursDetail).reduce((s,d)=>s+d.total,0);
+            const totalContracted=Object.values(empContractedHours).reduce((s,v)=>s+v,0);
+            const totalOT=Object.values(empMonthHoursDetail).reduce((s,d)=>s+d.overtime,0);
+            const totalHol=Object.values(empMonthHoursDetail).reduce((s,d)=>s+d.holiday,0);
+            const util=totalContracted>0?Math.round(totalWorked/totalContracted*100):0;
+            const kpis=[
+              {v:`${util}%`,l:lang==="ro"?"Utilizare":"Utilization",c:util>100?th.warn:util>=90?th.ok:util>=70?th.warn:th.er,anchor:"dashboard-section"},
+              {v:formatHours(totalOT)+"h",l:"OT",c:totalOT>0?th.warn:th.ok,anchor:"dashboard-section"},
+              {v:formatHours(totalHol)+"h",l:lang==="ro"?"Sărbători":"Holidays",c:totalHol>0?"#d946ef":th.t3,anchor:"dashboard-section"},
+              {v:String(company.employees.filter(e=>e.status!=="terminated").length),l:lang==="ro"?"Activi":"Active",c:th.ac,anchor:null},
+            ];
+            return <div style={{display:"flex",gap:8,marginTop:14,padding:"10px 12px",
+              borderRadius:G.rS,background:th.gbg,border:`1px solid ${th.gbd}`,
+              backdropFilter:G.blurS,WebkitBackdropFilter:G.blurS,
+            }}>
+              {kpis.map((kpi,i)=><div key={i}
+                onClick={()=>{if(kpi.anchor){const el=document.getElementById(kpi.anchor);if(el)el.scrollIntoView({behavior:"smooth",block:"start"});}}}
+                style={{flex:1,textAlign:"center",cursor:kpi.anchor?"pointer":"default",
+                borderRight:i<3?`1px solid ${th.bd2}`:"none",paddingRight:i<3?8:0,
+                transition:"transform 0.15s",borderRadius:6,padding:"4px 0",
+              }}>
                 <div style={{fontSize:18,fontWeight:800,color:kpi.c,lineHeight:1}}>{kpi.v}</div>
                 <div style={{fontSize:9,color:th.t3,marginTop:2,fontWeight:600}}>{kpi.l}</div>
-              </div>);
-            })()}
-          </div>}
+              </div>)}
+            </div>;
+          })()}
 
           {/* Legend */}
           <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:10,justifyContent:"center"}}>
@@ -2105,52 +2120,83 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
           </div>
         </div>
 
-        {/* ── Coverage Report Glass Card ── */}
+        {/* ── Coverage Report with Mini Calendar Heatmap ── */}
         {company.employees.length>0 && company.shifts.length>0 && (()=>{
           const dayKeys=["mon","tue","wed","thu","fri","sat","sun"];
           const od=company.opDays||{mon:{active:true},tue:{active:true},wed:{active:true},thu:{active:true},fri:{active:true},sat:{active:false},sun:{active:false}};
           const monthNames=[t.jan,t.feb,t.mar,t.apr,t.may,t.jun,t.jul,t.aug,t.sep,t.oct,t.nov,t.dec];
           const daysInM=getDaysInMonth(curYear,curMonth);
-          const uncovered=[];
+          const firstDow=getFirstDayOfMonth(curYear,curMonth);
+          const totalActive=company.employees.filter(e=>e.status!=="terminated").length;
+          const dayCoverage=[];
+          let uncoveredCount=0;
           for(let d=1;d<=daysInM;d++){
-            const dow=(getFirstDayOfMonth(curYear,curMonth)+d-1)%7;
-            if(!od[dayKeys[dow]]?.active) continue;
+            const dow=(firstDow+d-1)%7;
+            const isOp=od[dayKeys[dow]]?.active;
             const date=`${curYear}-${pad2(curMonth+1)}-${pad2(d)}`;
             const dayA=company.assignments[date]||{};
-            const hasAnyShift=Object.values(dayA).some(v=>(Array.isArray(v)?v.length>0:!!v));
-            if(!hasAnyShift) uncovered.push({d,dow,date});
+            const staffCount=Object.values(dayA).filter(v=>(Array.isArray(v)?v.length>0:!!v)).length;
+            const pct=totalActive>0?Math.round(staffCount/totalActive*100):0;
+            if(isOp&&staffCount===0) uncoveredCount++;
+            dayCoverage.push({d,dow,isOp,staffCount,pct,date});
           }
-          const fullDayNames=[t.monFull,t.tueFull,t.wedFull,t.thuFull,t.friFull,t.satFull||"Sat",t.sunFull||"Sun"];
-          return <div style={{borderRadius:G.rL,background:th.card,border:`1px solid ${th.gbd}`,
+          const dayH=[t.mon,t.tue,t.wed,t.thu,t.fri,t.sat,t.sun];
+          const calCells=[];
+          for(let i=0;i<firstDow;i++) calCells.push(null);
+          dayCoverage.forEach(dc=>calCells.push(dc));
+          while(calCells.length%7!==0) calCells.push(null);
+
+          return <div id="coverage-section" style={{borderRadius:G.rL,background:th.card,border:`1px solid ${th.gbd}`,
             boxShadow:th.cardS,backdropFilter:G.blur,WebkitBackdropFilter:G.blur,padding:16}}>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
               <h3 style={{fontSize:14,fontWeight:800,color:th.tx,margin:0}}>📊 {t.coverageReport}</h3>
               <span style={{fontSize:11,color:th.t3}}>{monthNames[curMonth]} {curYear}</span>
             </div>
-            {uncovered.length===0?<div style={{
+            {uncoveredCount===0?<div style={{
               padding:"10px 14px",borderRadius:G.rXs,background:th.okBg,display:"flex",alignItems:"center",gap:8,
             }}><Icons.Check s={16} c={th.ok}/><span style={{fontSize:12,fontWeight:600,color:th.ok}}>{t.noneUncovered}</span></div>
-            :<div>
-              <div style={{fontSize:12,fontWeight:600,color:th.warn,marginBottom:8}}>⚠️ {uncovered.length} {t.uncoveredDays.toLowerCase()}</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
-                {uncovered.map(({d,dow})=><div key={d} style={{
-                  padding:"3px 8px",borderRadius:6,background:th.warnBg,border:`1px solid ${th.warn}25`,
-                  fontSize:10,fontWeight:600,color:th.warn,
-                }}>{fullDayNames[dow]} {d}</div>)}
-              </div>
-            </div>}
+            :<div style={{fontSize:12,fontWeight:600,color:th.warn,marginBottom:8}}>⚠️ {uncoveredCount} {t.uncoveredDays.toLowerCase()}</div>}
+            {/* Mini calendar heatmap */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginTop:8}}>
+              {dayH.map((dn,i)=><div key={i} style={{textAlign:"center",fontSize:8,fontWeight:700,color:th.t3,padding:"2px 0"}}>{dn}</div>)}
+              {calCells.map((cell,i)=>{
+                if(!cell) return <div key={"e"+i} style={{minHeight:28}}/>;
+                const bg=!cell.isOp?th.t3+"08":cell.pct>=80?th.ok+"20":cell.pct>=40?th.warn+"20":cell.staffCount===0?th.er+"15":"transparent";
+                const border=!cell.isOp?"none":cell.pct>=80?`1px solid ${th.ok}30`:cell.pct>=40?`1px solid ${th.warn}30`:cell.staffCount===0?`1px solid ${th.er}25`:`1px solid ${th.bd2}`;
+                return <div key={cell.d} title={`${cell.d}: ${cell.staffCount}/${totalActive} (${cell.pct}%)`} style={{
+                  minHeight:28,borderRadius:4,background:bg,border,
+                  display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+                  cursor:"default",transition:"all 0.1s",
+                }}>
+                  <span style={{fontSize:10,fontWeight:600,color:!cell.isOp?th.t3:th.tx}}>{cell.d}</span>
+                  {cell.isOp&&<span style={{fontSize:7,fontWeight:600,
+                    color:cell.pct>=80?th.ok:cell.pct>=40?th.warn:cell.staffCount===0?th.er:th.t3,
+                  }}>{cell.staffCount}/{totalActive}</span>}
+                </div>;
+              })}
+            </div>
+            {/* Legend */}
+            <div style={{display:"flex",gap:8,justifyContent:"center",marginTop:8,flexWrap:"wrap"}}>
+              {[{c:th.ok+"20",b:th.ok+"30",l:lang==="ro"?"Acoperit (80%+)":"Covered (80%+)"},
+                {c:th.warn+"20",b:th.warn+"30",l:lang==="ro"?"Parțial":"Partial"},
+                {c:th.er+"15",b:th.er+"25",l:lang==="ro"?"Neacoperit":"Uncovered"},
+                {c:th.t3+"08",b:"transparent",l:lang==="ro"?"Închis":"Closed"},
+              ].map(({c:co,b:bo,l},i)=><span key={i} style={{display:"flex",alignItems:"center",gap:3,fontSize:8,color:th.t2}}>
+                <div style={{width:10,height:10,borderRadius:2,background:co,border:`1px solid ${bo}`}}/>{l}
+              </span>)}
+            </div>
           </div>;
         })()}
 
 
-        {/* ── COMPLIANCE & ANALYTICS DASHBOARD (Floating Glass Card) ── */}
+        {/* ── COMPLIANCE & ANALYTICS DASHBOARD ── */}
         {company.employees.length>0 && (()=>{
           const dayKeys=["mon","tue","wed","thu","fri","sat","sun"];
           const od=company.opDays||{mon:{active:true},tue:{active:true},wed:{active:true},thu:{active:true},fri:{active:true},sat:{active:false},sun:{active:false}};
           const daysInM=getDaysInMonth(curYear,curMonth);
           const monthNames=[t.jan,t.feb,t.mar,t.apr,t.may,t.jun,t.jul,t.aug,t.sep,t.oct,t.nov,t.dec];
           const hols=holidays;
-          const compliance=company.employees.map(emp=>{
+          const compliance=company.employees.filter(e=>e.status!=="terminated").map(emp=>{
             const warnings=[];
             const workDays=[];
             for(let d=1;d<=daysInM;d++){
@@ -2172,79 +2218,184 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
               for(const day of week){if(!day.worked)curConsec++;else{maxConsecRest=Math.max(maxConsecRest,curConsec);curConsec=0;}}
               maxConsecRest=Math.max(maxConsecRest,curConsec);
               if(maxConsecRest<2&&week.filter(d=>d.worked).length>=6)
-                warnings.push({type:"rest48",severity:"high",msg:`Săpt. ${week[0].d}–${week[6].d}: lipsă repaus 48h (Art. 137)`});
+                warnings.push({type:"rest48",severity:"high",msg:lang==="ro"?`Săpt. ${week[0].d}–${week[6].d}: lipsă repaus 48h (Art. 137)`:`Week ${week[0].d}–${week[6].d}: missing 48h rest (Art. 137)`});
               const weekH=week.reduce((s,d)=>s+d.totalH,0);
-              if(weekH>48) warnings.push({type:"max48",severity:"high",msg:`Săpt. ${week[0].d}–${week[6].d}: ${formatHours(weekH)}h (max 48h, Art. 114)`});
+              if(weekH>48) warnings.push({type:"max48",severity:"high",msg:lang==="ro"?`Săpt. ${week[0].d}–${week[6].d}: ${formatHours(weekH)}h (max 48h, Art. 114)`:`Week ${week[0].d}–${week[6].d}: ${formatHours(weekH)}h (max 48h, Art. 114)`});
             }
             let maxCW=0,curCW=0;
             for(const day of workDays){if(day.worked){curCW++;maxCW=Math.max(maxCW,curCW)}else curCW=0;}
-            if(maxCW>14) warnings.push({type:"consec14",severity:"high",msg:`${maxCW} zile consecutive (max 14, Art. 137)`});
+            if(maxCW>14) warnings.push({type:"consec14",severity:"high",msg:lang==="ro"?`${maxCW} zile consecutive (max 14, Art. 137)`:`${maxCW} consecutive days (max 14, Art. 137)`});
             const holDays=workDays.filter(d=>d.isHol&&d.worked);
-            if(holDays.length>0) warnings.push({type:"holiday",severity:"info",msg:`${holDays.length} zile sărbători lucrate (spor ≥100%)`});
+            if(holDays.length>0) warnings.push({type:"holiday",severity:"info",msg:lang==="ro"?`${holDays.length} zile sărbători lucrate (spor ≥100%)`:`${holDays.length} holiday days worked (≥100% premium)`});
             const detail=empMonthHoursDetail[emp.id]||{normal:0,overtime:0,holiday:0,total:0};
             const contracted=empContractedHours[emp.id]||0;
             const leaveDays=workDays.filter(d=>d.hasLeave).length;
             const absentDays=workDays.filter(d=>{const isOp=od[dayKeys[d.dow]]?.active;return isOp&&!d.worked&&!d.hasLeave&&!d.isHol;}).length;
             return {emp,warnings,detail,contracted,leaveDays,absentDays};
           });
-          const totalWarnings=compliance.reduce((s,c)=>s+c.warnings.filter(w=>w.severity==="high").length,0);
 
-          return <div style={{borderRadius:G.rL,background:th.card,border:`1px solid ${th.gbd}`,
+          return <div id="dashboard-section" style={{borderRadius:G.rL,background:th.card,border:`1px solid ${th.gbd}`,
             boxShadow:th.cardS,backdropFilter:G.blur,WebkitBackdropFilter:G.blur,padding:16}}>
             <h2 style={{fontSize:16,fontWeight:900,color:th.tx,marginBottom:14}}>📊 Dashboard — {monthNames[curMonth]} {curYear}</h2>
 
-            {/* Compliance Table */}
+            {/* Sortable Compliance Table with row hover + expandable detail */}
             <div style={{overflowX:"auto",marginBottom:16}}>
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,fontFamily:F}}>
                 <thead><tr style={{background:th.bd2}}>
-                  <th style={{padding:"8px 10px",textAlign:"left",fontWeight:700,color:th.t2}}>Angajat</th>
-                  <th style={{padding:"8px 6px",textAlign:"center",fontWeight:700,color:th.t2}}>Ore</th>
+                  <th style={{padding:"8px 10px",textAlign:"left",fontWeight:700,color:th.t2}}>{lang==="ro"?"Angajat":"Employee"}</th>
+                  <th style={{padding:"8px 6px",textAlign:"center",fontWeight:700,color:th.t2,cursor:"pointer"}}>{lang==="ro"?"Ore":"Hours"}</th>
                   <th style={{padding:"8px 6px",textAlign:"center",fontWeight:700,color:th.t2}}>OT</th>
-                  <th style={{padding:"8px 6px",textAlign:"center",fontWeight:700,color:th.t2}}>Sărbători</th>
-                  <th style={{padding:"8px 6px",textAlign:"center",fontWeight:700,color:th.t2}}>Concedii</th>
-                  <th style={{padding:"8px 6px",textAlign:"center",fontWeight:700,color:th.t2}}>Absențe</th>
+                  <th style={{padding:"8px 6px",textAlign:"center",fontWeight:700,color:th.t2}}>{lang==="ro"?"Sărbători":"Holidays"}</th>
+                  <th style={{padding:"8px 6px",textAlign:"center",fontWeight:700,color:th.t2}}>{lang==="ro"?"Concedii":"Leaves"}</th>
+                  <th style={{padding:"8px 6px",textAlign:"center",fontWeight:700,color:th.t2}}>{lang==="ro"?"Absențe":"Absences"}</th>
                   <th style={{padding:"8px 10px",textAlign:"left",fontWeight:700,color:th.t2}}>Status</th>
                 </tr></thead>
                 <tbody>{compliance.map(({emp,warnings,detail,contracted,leaveDays,absentDays})=>{
                   const highW=warnings.filter(w=>w.severity==="high");
-                  return <tr key={emp.id} style={{borderBottom:`1px solid ${th.bd2}`}}>
+                  const utilPct=contracted>0?Math.round(detail.total/contracted*100):0;
+                  const statusColor=highW.length>0?th.er:utilPct>105?th.warn:th.ok;
+                  const statusLabel=highW.length>0?(lang==="ro"?"Neconform":"Non-compliant"):utilPct>105?(lang==="ro"?"Atenție":"Warning"):(lang==="ro"?"Conform":"Compliant");
+                  const statusIcon=highW.length>0?"❌":utilPct>105?"⚠️":"✅";
+                  return <tr key={emp.id} style={{borderBottom:`1px solid ${th.bd2}`,transition:"background 0.1s",cursor:"default"}}
+                    onMouseEnter={e=>e.currentTarget.style.background=th.ac+"08"}
+                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                     <td style={{padding:"8px 10px",fontWeight:600,color:th.tx}}>{emp.name}</td>
                     <td style={{padding:"8px 6px",textAlign:"center",color:th.t2}}>{formatHours(detail.total)}h/{formatHours(contracted)}h</td>
                     <td style={{padding:"8px 6px",textAlign:"center",color:detail.overtime>0?th.warn:th.t3,fontWeight:detail.overtime>0?700:400}}>{detail.overtime>0?formatHours(detail.overtime)+"h":"–"}</td>
                     <td style={{padding:"8px 6px",textAlign:"center",color:detail.holiday>0?"#d946ef":th.t3}}>{detail.holiday>0?formatHours(detail.holiday)+"h":"–"}</td>
                     <td style={{padding:"8px 6px",textAlign:"center",color:leaveDays>0?PAL.blue:th.t3}}>{leaveDays||"–"}</td>
                     <td style={{padding:"8px 6px",textAlign:"center",color:absentDays>0?th.er:th.t3,fontWeight:absentDays>0?700:400}}>{absentDays||"–"}</td>
-                    <td style={{padding:"8px 10px"}}>{highW.length===0?<span style={{fontSize:10,color:th.ok,fontWeight:700}}>✅ Conform</span>
-                      :<div style={{display:"flex",flexDirection:"column",gap:2}}>{highW.map((w,i)=><span key={i} style={{fontSize:9,color:th.er,fontWeight:600}}>⚠️ {w.msg}</span>)}</div>}</td>
+                    <td style={{padding:"8px 10px"}}><span style={{
+                      fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:8,
+                      background:statusColor+"15",color:statusColor,
+                    }}>{statusIcon} {statusLabel}</span>
+                    {highW.length>0&&<div style={{marginTop:3}}>{highW.map((w,i)=><div key={i} style={{fontSize:8,color:th.er,fontWeight:600}}>⚠️ {w.msg}</div>)}</div>}
+                    </td>
                   </tr>;
                 })}</tbody>
               </table>
             </div>
 
-            {/* Hours Bar Chart */}
-            <h3 style={{fontSize:13,fontWeight:800,color:th.tx,marginBottom:10}}>📈 Repartizare Ore</h3>
+            {/* Hours Bar Chart with target line + tooltip */}
+            <h3 style={{fontSize:13,fontWeight:800,color:th.tx,marginBottom:10}}>📈 {lang==="ro"?"Repartizare Ore":"Hours Distribution"}</h3>
             <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:14}}>
               {compliance.map(({emp,detail,contracted})=>{
                 const maxH=Math.max(...compliance.map(c=>Math.max(c.detail.total,c.contracted)),1);
                 const nW=(detail.normal/maxH*100);const oW=(detail.overtime/maxH*100);const hW=(detail.holiday/maxH*100);
-                return <div key={emp.id} style={{display:"flex",alignItems:"center",gap:8}}>
+                const targetPos=contracted/maxH*100;
+                return <div key={emp.id} style={{display:"flex",alignItems:"center",gap:8}}
+                  title={`${emp.name}: ${formatHours(detail.normal)}h ${lang==="ro"?"normale":"normal"} + ${formatHours(detail.overtime)}h OT + ${formatHours(detail.holiday)}h ${lang==="ro"?"sărbători":"holidays"} = ${formatHours(detail.total)}h`}>
                   <span style={{fontSize:10,fontWeight:600,color:th.tx,width:70,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flexShrink:0}}>{emp.name}</span>
                   <div style={{flex:1,height:16,borderRadius:4,background:th.bd2,position:"relative",overflow:"hidden"}}>
                     <div style={{position:"absolute",left:0,top:0,height:"100%",width:`${nW}%`,background:th.ok,borderRadius:"4px 0 0 4px"}}/>
                     <div style={{position:"absolute",left:`${nW}%`,top:0,height:"100%",width:`${oW}%`,background:th.warn}}/>
                     <div style={{position:"absolute",left:`${nW+oW}%`,top:0,height:"100%",width:`${hW}%`,background:"#d946ef",borderRadius:"0 4px 4px 0"}}/>
-                    <div style={{position:"absolute",left:`${contracted/maxH*100}%`,top:0,height:"100%",width:2,background:th.tx+"50"}}/>
+                    {/* Target line */}
+                    <div style={{position:"absolute",left:`${targetPos}%`,top:-2,height:20,width:2,
+                      background:th.tx,borderRadius:1,opacity:0.4}} title={`${lang==="ro"?"Contract":"Contract"}: ${formatHours(contracted)}h`}/>
                   </div>
                   <span style={{fontSize:9,color:th.t3,width:40,textAlign:"right",flexShrink:0}}>{formatHours(detail.total)}h</span>
                 </div>;
               })}
-              <div style={{display:"flex",gap:10,justifyContent:"center",marginTop:4}}>
-                {[{c:th.ok,l:"Normale"},{c:th.warn,l:"Suplimentare"},{c:"#d946ef",l:"Sărbători"}].map(({c:co,l},i)=>
+              <div style={{display:"flex",gap:10,justifyContent:"center",marginTop:4,flexWrap:"wrap"}}>
+                {[{c:th.ok,l:lang==="ro"?"Normale":"Normal"},{c:th.warn,l:lang==="ro"?"Suplimentare":"Overtime"},{c:"#d946ef",l:lang==="ro"?"Sărbători":"Holidays"},{c:th.tx+"50",l:lang==="ro"?"Contract":"Contract",isDashed:true}].map(({c:co,l,isDashed},i)=>
                   <span key={i} style={{display:"flex",alignItems:"center",gap:3,fontSize:9,color:th.t2}}>
-                    <div style={{width:8,height:8,borderRadius:2,background:co}}/>{l}
+                    <div style={{width:isDashed?2:8,height:8,borderRadius:isDashed?0:2,background:co}}/>{l}
                   </span>)}
               </div>
             </div>
+
+            {/* ── IMPROVEMENT 19: Leave Balance Tracker ── */}
+            {(()=>{
+              const coLeave=(company.leaves||[]).find(lv=>lv.short==="CO");
+              if(!coLeave) return null;
+              const activeEmps=company.employees.filter(e=>e.status!=="terminated");
+              if(activeEmps.length===0) return null;
+              const leaveBalances=activeEmps.map(emp=>{
+                const annual=emp.ptoDays||21;
+                let used=0;
+                Object.entries(company.leaveAssignments||{}).forEach(([date,la])=>{
+                  if(la[emp.id]===coLeave.id) used++;
+                });
+                return {emp,annual,used,remaining:Math.max(0,annual-used)};
+              });
+              return <div style={{marginBottom:14}}>
+                <h3 style={{fontSize:13,fontWeight:800,color:th.tx,marginBottom:10}}>🏖️ {lang==="ro"?"Sold Concediu Odihnă (CO)":"PTO Balance (Annual Leave)"}</h3>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:6}}>
+                  {leaveBalances.map(({emp,annual,used,remaining})=>{
+                    const pct=annual>0?Math.round(used/annual*100):0;
+                    return <div key={emp.id} style={{padding:"8px 10px",borderRadius:G.rXs,
+                      background:th.gbg,border:`1px solid ${th.gbd}`,
+                    }}>
+                      <div style={{fontSize:10,fontWeight:700,color:th.tx,marginBottom:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{emp.name}</div>
+                      <div style={{height:4,borderRadius:2,background:th.bd2,overflow:"hidden",marginBottom:4}}>
+                        <div style={{height:"100%",width:`${pct}%`,borderRadius:2,
+                          background:pct>=90?th.er:pct>=70?th.warn:th.ok,transition:"width 0.3s"}}/>
+                      </div>
+                      <div style={{display:"flex",justifyContent:"space-between",fontSize:8}}>
+                        <span style={{color:th.t3}}>{used}/{annual} {lang==="ro"?"folosite":"used"}</span>
+                        <span style={{fontWeight:700,color:remaining<=3?th.er:remaining<=7?th.warn:th.ok}}>{remaining} {lang==="ro"?"rămase":"left"}</span>
+                      </div>
+                    </div>;
+                  })}
+                </div>
+              </div>;
+            })()}
+
+            {/* ── IMPROVEMENT 20: Monthly Comparison ── */}
+            {(()=>{
+              const prevM=curMonth===0?11:curMonth-1;
+              const prevY=curMonth===0?curYear-1:curYear;
+              const prevHols=getHolidays(company.country,prevY);
+              const prevDaysInM=getDaysInMonth(prevY,prevM);
+              let prevTotalWorked=0,prevTotalOT=0,prevTotalHol=0;
+              let prevTotalContracted=0;
+              company.employees.filter(e=>e.status!=="terminated").forEach(emp=>{
+                const hpd=emp.hoursPerDay||8;
+                let legalDays=0;
+                for(let d=1;d<=prevDaysInM;d++){
+                  const dow=(getFirstDayOfMonth(prevY,prevM)+d-1)%7;
+                  const date=`${prevY}-${pad2(prevM+1)}-${pad2(d)}`;
+                  if(dow<=4&&!prevHols[date]) legalDays++;
+                }
+                prevTotalContracted+=legalDays*hpd;
+                for(let d=1;d<=prevDaysInM;d++){
+                  const date=`${prevY}-${pad2(prevM+1)}-${pad2(d)}`;
+                  const dayA=company.assignments[date]||{};
+                  const raw=dayA[emp.id];
+                  const ids=raw?(Array.isArray(raw)?raw:[raw]):[];
+                  const shifts=ids.map(id=>company.shifts.find(s=>s.id===id)).filter(Boolean);
+                  const h=shifts.reduce((s,sh)=>s+shiftDuration(sh.start,sh.end),0);
+                  const isHol=!!prevHols[date];
+                  if(isHol&&h>0) prevTotalHol+=h;
+                  else prevTotalWorked+=h;
+                }
+              });
+              prevTotalOT=Math.max(0,prevTotalWorked-prevTotalContracted);
+              const curTotalWorked=Object.values(empMonthHoursDetail).reduce((s,d)=>s+d.total,0);
+              const curTotalOT=Object.values(empMonthHoursDetail).reduce((s,d)=>s+d.overtime,0);
+              const curTotalHol=Object.values(empMonthHoursDetail).reduce((s,d)=>s+d.holiday,0);
+              const curTotalContracted=Object.values(empContractedHours).reduce((s,v)=>s+v,0);
+              const curUtil=curTotalContracted>0?Math.round(curTotalWorked/curTotalContracted*100):0;
+              const prevUtil=prevTotalContracted>0?Math.round((prevTotalWorked+prevTotalHol)/prevTotalContracted*100):0;
+              const delta=(v1,v2)=>{const d=v1-v2;return d>0?`+${d}`:d<0?`${d}`:"=";};
+              const deltaC=(v1,v2)=>{const d=v1-v2;return d>0?th.ok:d<0?th.er:th.t3;};
+              return <div>
+                <h3 style={{fontSize:13,fontWeight:800,color:th.tx,marginBottom:10}}>📅 {lang==="ro"?"Comparație lunară":"Monthly Comparison"}</h3>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
+                  {[
+                    {l:lang==="ro"?"Utilizare":"Utilization",cur:`${curUtil}%`,prev:`${prevUtil}%`,d:delta(curUtil,prevUtil)+"%",dc:deltaC(curUtil,prevUtil)},
+                    {l:"OT",cur:formatHours(curTotalOT)+"h",prev:formatHours(prevTotalOT)+"h",d:delta(Math.round(curTotalOT),Math.round(prevTotalOT))+"h",dc:curTotalOT>prevTotalOT?th.warn:th.ok},
+                    {l:lang==="ro"?"Sărbători":"Holidays",cur:formatHours(curTotalHol)+"h",prev:formatHours(prevTotalHol)+"h",d:delta(Math.round(curTotalHol),Math.round(prevTotalHol))+"h",dc:th.t3},
+                    {l:lang==="ro"?"Ore lucrate":"Hours worked",cur:formatHours(curTotalWorked)+"h",prev:formatHours(prevTotalWorked+prevTotalHol)+"h",d:delta(Math.round(curTotalWorked),Math.round(prevTotalWorked+prevTotalHol))+"h",dc:deltaC(curTotalWorked,prevTotalWorked+prevTotalHol)},
+                  ].map((m,i)=><div key={i} style={{padding:"8px",borderRadius:G.rXs,background:th.gbg,border:`1px solid ${th.gbd}`,textAlign:"center"}}>
+                    <div style={{fontSize:8,fontWeight:600,color:th.t3,marginBottom:4}}>{m.l}</div>
+                    <div style={{fontSize:14,fontWeight:800,color:th.tx,lineHeight:1}}>{m.cur}</div>
+                    <div style={{fontSize:8,color:m.dc,fontWeight:700,marginTop:3}}>{m.d} {lang==="ro"?"vs":"vs"} {monthNames[prevM].slice(0,3)}</div>
+                  </div>)}
+                </div>
+              </div>;
+            })()}
           </div>;
         })()}
 
