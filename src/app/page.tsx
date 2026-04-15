@@ -1026,7 +1026,7 @@ function Landing({onCreateCompany,onAccessCompany,onDeleteCompany,recentCompanie
 }
 
 // ─── CALENDAR COMPONENT ──────────────────────────────────────
-function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selectedLeave,onAssign,onRemove,onAssignLeave,onRemoveLeave,isAdmin,filterEmpId,th,t}){
+function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selectedLeave,onAssign,onRemove,onRemoveShift,onAssignLeave,onRemoveLeave,isAdmin,filterEmpId,th,t}){
   const days=getDaysInMonth(year,month);
   const firstDay=getFirstDayOfMonth(year,month);
   const holidays=useMemo(()=>getHolidays(company.country,year),[company.country,year]);
@@ -1091,8 +1091,10 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
   // ── Drag-to-paint: hold mouse and drag across days to assign continuously ──
   const isPainting=useRef(false);
   const paintEmpId=useRef(null);
+  const isDraggingShift=useRef(false);
 
   const startPaint=(date,empId)=>{
+    if(isDraggingShift.current)return;
     if(!isAdmin||!isEmpActiveOnDate(empId,date))return;
     if(!selectedShift&&!selectedLeave)return;
     if(selectedEmp&&selectedEmp!==empId)return;
@@ -1102,9 +1104,20 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
   };
 
   const continuePaint=(date,empId)=>{
-    if(!isPainting.current)return;
+    if(!isPainting.current||isDraggingShift.current)return;
     if(empId!==paintEmpId.current)return;
     if(!isEmpActiveOnDate(empId,date))return;
+    // Only assign if not already assigned (prevent toggle-off while painting)
+    if(selectedShift){
+      const dayA=company.assignments[date]||{};
+      const cur=dayA[empId];
+      const ids=cur?(Array.isArray(cur)?cur:[cur]):[];
+      if(ids.includes(selectedShift))return;
+    }
+    if(selectedLeave){
+      const la=(company.leaveAssignments||{})[date]||{};
+      if(la[empId]===selectedLeave)return;
+    }
     handleCellClick(date,empId);
   };
 
@@ -1117,6 +1130,8 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
   const dragShiftRef=useRef(null);
 
   const onShiftDragStart=(e,date,empId,shiftId)=>{
+    isDraggingShift.current=true;
+    isPainting.current=false;
     dragShiftRef.current={date,empId,shiftId};
     e.dataTransfer.effectAllowed="move";
     e.dataTransfer.setData("text/plain",shiftId);
@@ -1131,11 +1146,19 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
     const src=dragShiftRef.current;
     if(!src)return;
     if(!isEmpActiveOnDate(targetEmpId,targetDate))return;
-    // Remove from source
-    onRemove(src.date,src.empId);
+    // Don't do anything if dropped on same cell
+    if(src.date===targetDate&&src.empId===targetEmpId){dragShiftRef.current=null;isDraggingShift.current=false;return;}
+    // Remove specific shift from source
+    onRemoveShift(src.date,src.empId,src.shiftId);
     // Assign to target
     onAssign(targetDate,targetEmpId,src.shiftId);
     dragShiftRef.current=null;
+    isDraggingShift.current=false;
+  };
+
+  const onShiftDragEnd=()=>{
+    dragShiftRef.current=null;
+    isDraggingShift.current=false;
   };
 
   const empTotalHours=(empId)=>{
@@ -1271,6 +1294,7 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
                 {shifts.map((sh,i)=><div key={sh.id+i}
                   draggable={isAdmin}
                   onDragStart={e=>onShiftDragStart(e,date,emp.id,sh.id)}
+                  onDragEnd={onShiftDragEnd}
                   style={{
                   padding:"3px 5px",borderRadius:4,
                   background:sh.color+"12",
@@ -2114,7 +2138,7 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
           <ScheduleCalendar
             company={company} month={curMonth} year={curYear}
             selectedShift={selShift} selectedEmp={selEmp} selectedLeave={selLeave}
-            onAssign={assign} onRemove={removeAllFromDay}
+            onAssign={assign} onRemove={removeAllFromDay} onRemoveShift={removeShiftFromDay}
             onAssignLeave={assignLeave} onRemoveLeave={removeLeaveFromDay}
             isAdmin={true} filterEmpId={null} th={th} t={t}
           />
@@ -2798,7 +2822,7 @@ function MemberView({company,empId,th,t,lang,setLang,theme,setTheme}){
       <ScheduleCalendar
         company={company} month={curMonth} year={curYear}
         selectedShift={null} selectedEmp={empId} selectedLeave={null}
-        onAssign={()=>{}} onRemove={()=>{}} onAssignLeave={()=>{}} onRemoveLeave={()=>{}}
+        onAssign={()=>{}} onRemove={()=>{}} onRemoveShift={()=>{}} onAssignLeave={()=>{}} onRemoveLeave={()=>{}}
         isAdmin={false} filterEmpId={empId} th={th} t={t}
       />
 
