@@ -1205,11 +1205,11 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
     return total;
   };
 
-  const colW=`minmax(80px,1fr)`;
-  const gridCols=`180px repeat(${days},${colW}) 56px`;
+  const colW=`minmax(60px,1fr)`;
+  const gridCols=`140px repeat(${days},${colW}) 50px`;
 
   return <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch"}} onMouseUp={stopPaint} onMouseLeave={stopPaint}>
-    <div style={{minWidth:days*82+240}}>
+    <div style={{minWidth:days*62+200}}>
       {/* ── HEADER ROW ── */}
       <div style={{display:"grid",gridTemplateColumns:gridCols,gap:0,
         position:"sticky",top:0,zIndex:10,background:th.card,
@@ -1227,8 +1227,8 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
           const isSunday=dow===6;
           return <div key={d} style={{
             padding:"4px 6px",textAlign:"center",
-            background:isTodayH?th.ac+"10":(isNonWorking?th.holBg+"60":(isWeekend?th.t3+"06":"transparent")),
-            borderBottom:isTodayH?`3px solid ${th.ac}`:"none",
+            background:isTodayH?"rgba(59,109,230,0.08)":(isNonWorking?th.holBg+"60":(isWeekend?th.t3+"06":"transparent")),
+            
             borderRight:isSunday?`2px solid ${th.bd}`:`1px dotted ${th.bd2}`,
           }}>
             <div style={{fontSize:10,fontWeight:500,color:isNonWorking?th.holTx:th.t3}}>{dayNamesShort[dow]}</div>
@@ -1247,7 +1247,7 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
           padding:"6px 12px",
           background:th.acS,borderBottom:`1px solid ${th.bd}`,borderTop:`1px solid ${th.bd}`,
           fontSize:11,fontWeight:800,color:th.ac,textTransform:"uppercase",letterSpacing:"0.06em",
-          minWidth:days*82+240,
+          minWidth:days*62+200,
         }}>
           {role}
         </div>}
@@ -1279,7 +1279,7 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
                 fontSize:11,fontWeight:700,color:"#fff",
               }}>{emp.name.charAt(0).toUpperCase()}</div>
               <div style={{minWidth:0,flex:1}}>
-                <div style={{fontSize:12,fontWeight:700,color:isTerm?th.t3:th.tx,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
+                <div style={{fontSize:11,fontWeight:700,color:isTerm?th.t3:th.tx,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
                   textDecoration:isTerm?"line-through":"none"}}>{emp.name}</div>
                 <div style={{fontSize:10,color:totalH>0?th.ac:th.t3,fontWeight:600,marginTop:1}}>{formatHours(totalH)}h</div>
               </div>
@@ -1309,7 +1309,7 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
                 style={{
                   padding:"4px 3px",
                   borderRight:isSunday?`2px solid ${th.bd}`:`1px dotted ${th.bd2}`,
-                  background:!empActive?th.t3+"08":(isTodayCol?th.ac+"06":(isWeekend&&!isNonWorking?th.t3+"04":(isNonWorking?th.holBg+"40":"transparent"))),
+                  background:!empActive?th.t3+"08":(isTodayCol?"rgba(59,109,230,0.04)":(isWeekend&&!isNonWorking?th.t3+"04":(isNonWorking?th.holBg+"40":"transparent"))),
                   cursor:canClick?"crosshair":"default",
                   display:"flex",flexDirection:"column",alignItems:"stretch",justifyContent:"center",
                   gap:2,minHeight:56,transition:"background 0.1s",
@@ -1344,7 +1344,7 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
                           {displayStart}-{displayEnd}
                           {hasOverride&&<span style={{color:"#059669",fontSize:6,marginLeft:2}}>✎</span>}
                         </div>
-                        <div style={{color:th.t3,fontSize:7,marginTop:1}}>{sh.name}</div>
+                        <div style={{color:th.t3,fontSize:6,marginTop:0}}>{sh.name}</div>
                       </div>
                       {isAdmin&&isConfirmed&&<button
                         onClick={e=>{e.stopPropagation();onOpenTimeOverride(date,emp.id,sh.id);}}
@@ -1368,8 +1368,8 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
                     cursor:isAdmin?"grab":"default",
                     userSelect:"none",
                   }}>
-                    <div style={{fontWeight:700,color:th.tx}}>{sh.start}-{sh.end}</div>
-                    <div style={{color:th.t3,fontSize:7,marginTop:1}}>{sh.name}</div>
+                    <div style={{fontWeight:700,color:th.tx,fontSize:7}}>{sh.start.replace(":00","")}-{sh.end.replace(":00","")}</div>
+                    <div style={{color:th.t3,fontSize:6,marginTop:0}}>{sh.name}</div>
                   </div>;
                 })}
                 {/* Leave badge */}
