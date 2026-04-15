@@ -1318,7 +1318,9 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
                   const hasOverride=workedEntry&&(workedEntry.startOverride!==sh.start||workedEntry.endOverride!==sh.end);
 
                   if(viewMode==="worked"){
-                    return <div key={sh.id+i} style={{
+                    return <div key={sh.id+i}
+                      onMouseDown={e=>e.stopPropagation()}
+                      style={{
                       padding:"3px 5px",borderRadius:4,
                       background:isConfirmed?"#05966915":th.t3+"08",
                       borderLeft:`3px solid ${isConfirmed?"#059669":th.t3+"40"}`,
@@ -1327,16 +1329,21 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
                     }}>
                       {isAdmin&&<input type="checkbox" checked={isConfirmed}
                         onChange={()=>onConfirmWorked(date,emp.id,sh.id)}
-                        style={{margin:"1px 0 0",cursor:"pointer",accentColor:"#059669",width:12,height:12,flexShrink:0}}
-                        onClick={e=>e.stopPropagation()}/>}
-                      <div style={{flex:1,minWidth:0,cursor:isConfirmed&&isAdmin?"pointer":"default"}}
-                        onClick={e=>{e.stopPropagation();if(isConfirmed&&isAdmin)onOpenTimeOverride(date,emp.id,sh.id);}}>
+                        style={{margin:"1px 0 0",cursor:"pointer",accentColor:"#059669",width:12,height:12,flexShrink:0}}/>}
+                      <div style={{flex:1,minWidth:0}}>
                         <div style={{fontWeight:700,color:isConfirmed?th.tx:th.t3}}>
                           {displayStart}-{displayEnd}
-                          {hasOverride&&<span style={{color:"#059669",fontSize:6,marginLeft:2}}>*</span>}
+                          {hasOverride&&<span style={{color:"#059669",fontSize:6,marginLeft:2}}>✎</span>}
                         </div>
                         <div style={{color:th.t3,fontSize:7,marginTop:1}}>{sh.name}</div>
                       </div>
+                      {isAdmin&&isConfirmed&&<button
+                        onClick={e=>{e.stopPropagation();onOpenTimeOverride(date,emp.id,sh.id);}}
+                        onMouseDown={e=>e.stopPropagation()}
+                        style={{background:th.ac+"15",border:"none",borderRadius:3,cursor:"pointer",
+                          padding:"2px 4px",fontSize:7,fontWeight:700,color:th.ac,fontFamily:F,
+                          flexShrink:0,marginTop:1,
+                        }}>✎</button>}
                     </div>;
                   }
                   // Planned view — original Agendrix style
@@ -2172,6 +2179,146 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
             }}><Icons.ChevRight s={16} c={canNext()?th.ac:th.t3}/></button>
           </div>
 
+
+  // ── Professional Report HTML Generator ──
+  const generateReportHTML=(mode)=>{
+    const mn=[t.jan,t.feb,t.mar,t.apr,t.may,t.jun,t.jul,t.aug,t.sep,t.oct,t.nov,t.dec];
+    const dn=lang==="ro"?["L","Ma","Mi","J","V","S","D"]:["M","Tu","W","Th","F","Sa","Su"];
+    const dnFull=lang==="ro"?["Luni","Marți","Miercuri","Joi","Vineri","Sâmbătă","Duminică"]:["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+    const days=getDaysInMonth(curYear,curMonth);
+    const hols=getHolidays(company.country,curYear);
+    const activeEmps=company.employees.filter(e=>e.status!=="terminated");
+    const isPrint=mode==="print";
+
+    const css=`
+      @page{size:A4 landscape;margin:10mm 8mm}
+      *{margin:0;padding:0;box-sizing:border-box}
+      body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:#1a1a2e;background:#fff;padding:${isPrint?"0":"20px 24px"};font-size:8px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #3b6de6;padding-bottom:8px;margin-bottom:12px}
+      .company{font-size:16px;font-weight:800;color:#1a1a2e;letter-spacing:-0.02em}
+      .period{font-size:11px;color:#3b6de6;font-weight:700;margin-top:2px}
+      .meta{text-align:right;font-size:8px;color:#8892ab;line-height:1.5}
+      .badge{display:inline-block;padding:1px 4px;border-radius:3px;font-size:7px;font-weight:700;white-space:nowrap}
+      table{width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:12px}
+      th,td{border:1px solid #e2e5ea;padding:3px 2px;text-align:center;vertical-align:middle;overflow:hidden}
+      th{background:#f0f4fa;font-weight:700;font-size:7px;color:#4a5578}
+      .emp-cell{text-align:left;padding:4px 6px;font-weight:700;font-size:8px;white-space:nowrap;background:#fafbfc;width:90px;min-width:90px;max-width:90px}
+      .emp-role{font-size:6px;color:#8892ab;font-weight:500;display:block;margin-top:1px}
+      .total-cell{font-weight:800;font-size:9px;background:#f0f4fa;width:36px}
+      .role-row td{background:#eef2ff;color:#3b6de6;font-weight:800;font-size:8px;text-align:left;padding:4px 6px;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #3b6de6}
+      .weekend{background:#f8f9fb}
+      .holiday{background:#fef2f2}
+      .today-col{background:#eff6ff}
+      .shift-badge{display:block;padding:1px 2px;border-radius:2px;color:#fff;font-size:6px;font-weight:700;margin:1px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .leave-badge{display:block;font-style:italic;font-size:6px;font-weight:700;padding:1px 2px;border-radius:2px;margin:1px 0}
+      .summary{display:flex;gap:16px;margin-top:8px;padding:8px 12px;background:#f8f9fb;border-radius:6px;border:1px solid #e2e5ea}
+      .kpi{text-align:center;flex:1}
+      .kpi-val{font-size:14px;font-weight:800;line-height:1}
+      .kpi-label{font-size:7px;color:#8892ab;margin-top:2px}
+      .footer{margin-top:16px;padding-top:8px;border-top:1px solid #e2e5ea;display:flex;justify-content:space-between;font-size:7px;color:#8892ab}
+      .legend{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
+      .legend-item{display:flex;align-items:center;gap:3px;font-size:7px;color:#4a5578}
+      .legend-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+      .compliance-table{margin-top:12px}
+      .compliance-table th{font-size:7px}
+      .compliance-table td{font-size:8px;padding:4px 6px}
+      .status-ok{color:#059669;font-weight:700;font-size:7px}
+      .status-warn{color:#f59e0b;font-weight:700;font-size:7px}
+      .status-err{color:#dc2626;font-weight:700;font-size:7px}
+      @media print{.no-print{display:none}}
+    `;
+
+    let html="<!DOCTYPE html><html lang='"+lang+"'><head><meta charset='UTF-8'/><title>"+company.name+" — "+mn[curMonth]+" "+curYear+"</title><style>"+css+"</style></head><body>";
+
+    // Header
+    html+="<div class='header'>";
+    html+="<div><div class='company'>"+company.name+"</div>";
+    html+="<div class='period'>"+mn[curMonth]+" "+curYear+"</div></div>";
+    html+="<div class='meta'>"+(lang==="ro"?"Program de lucru":"Work Schedule")+"<br/>"+(lang==="ro"?"Generat":"Generated")+": "+new Date().toLocaleDateString(lang==="ro"?"ro-RO":"en-GB")+"</div>";
+    html+="</div>";
+
+    // Schedule grid
+    html+="<table><thead><tr><th class='emp-cell'>"+(lang==="ro"?"Angajat":"Employee")+"</th>";
+    for(let d=1;d<=days;d++){
+      const dow=(getFirstDayOfMonth(curYear,curMonth)+d-1)%7;
+      const date=curYear+"-"+pad2(curMonth+1)+"-"+pad2(d);
+      const isWe=dow>=5;const isHol=!!hols[date];
+      const cls=isHol?"holiday":(isWe?"weekend":"");
+      html+="<th class='"+cls+"'><span style='display:block;font-size:6px;color:#8892ab'>"+dn[dow]+"</span>"+d+(isHol?"<br/><span style='font-size:5px;color:#dc2626'>"+hols[date].substring(0,6)+"</span>":"")+"</th>";
+    }
+    html+="<th class='total-cell'>Total</th></tr></thead><tbody>";
+
+    // Group by role
+    const sorted=[...activeEmps].sort((a,b)=>(a.role||"zzz").toUpperCase().localeCompare((b.role||"zzz").toUpperCase()));
+    const groups={};sorted.forEach(emp=>{const r=(emp.role||"GENERAL").toUpperCase();if(!groups[r])groups[r]=[];groups[r].push(emp)});
+
+    Object.entries(groups).forEach(([role,emps])=>{
+      if(Object.keys(groups).length>1){
+        html+="<tr class='role-row'><td colspan='"+(days+2)+"'>"+role+"</td></tr>";
+      }
+      emps.forEach(emp=>{
+        html+="<tr><td class='emp-cell'>"+emp.name+(emp.role?"<span class='emp-role'>"+emp.role+"</span>":"")+"</td>";
+        let totalH=0;
+        for(let d=1;d<=days;d++){
+          const date=curYear+"-"+pad2(curMonth+1)+"-"+pad2(d);
+          const dow=(getFirstDayOfMonth(curYear,curMonth)+d-1)%7;
+          const dayA=company.assignments[date]||{};
+          const raw=dayA[emp.id];const ids=raw?(Array.isArray(raw)?raw:[raw]):[];
+          const la=(company.leaveAssignments||{})[date]||{};const lvId=la[emp.id];
+          const isWe=dow>=5;const isHol=!!hols[date];
+          const cls=isHol?"holiday":(isWe?"weekend":"");
+          let cell="";
+          ids.forEach(sid=>{const sh=company.shifts.find(s=>s.id===sid);if(sh){cell+="<span class='shift-badge' style='background:"+sh.color+"'>"+sh.start.replace(":00","")+"–"+sh.end.replace(":00","")+"</span>";totalH+=shiftDuration(sh.start,sh.end);}});
+          if(lvId){const lv=(company.leaves||[]).find(l=>l.id===lvId);if(lv)cell+="<span class='leave-badge' style='color:"+lv.color+";background:"+lv.color+"15'>"+lv.short+"</span>";}
+          html+="<td class='"+cls+"'>"+cell+"</td>";
+        }
+        html+="<td class='total-cell' style='color:#3b6de6'>"+formatHours(totalH)+"h</td></tr>";
+      });
+    });
+    html+="</tbody></table>";
+
+    // Legend
+    html+="<div class='legend'>";
+    company.shifts.forEach(s=>{html+="<span class='legend-item'><span class='legend-dot' style='background:"+s.color+"'></span>"+s.name+" ("+s.start+"–"+s.end+")</span>";});
+    (company.leaves||[]).filter(l=>["CO","CM"].includes(l.short)).forEach(lv=>{
+      html+="<span class='legend-item'><span class='legend-dot' style='background:"+lv.color+"'></span>"+lv.short+" – "+lv.name+"</span>";
+    });
+    html+="</div>";
+
+    // KPI Summary
+    const totalWorked=Object.values(activeHoursDetail).reduce((s,d)=>s+d.total,0);
+    const totalContracted=Object.values(empContractedHours).reduce((s,v)=>s+v,0);
+    const totalOT=Object.values(activeHoursDetail).reduce((s,d)=>s+d.overtime,0);
+    const totalHol=Object.values(activeHoursDetail).reduce((s,d)=>s+d.holiday,0);
+    const util=totalContracted>0?Math.round(totalWorked/totalContracted*100):0;
+
+    html+="<div class='summary'>";
+    html+="<div class='kpi'><div class='kpi-val' style='color:"+(util>100?"#f59e0b":util>=90?"#059669":"#dc2626")+"'>"+util+"%</div><div class='kpi-label'>"+(lang==="ro"?"Utilizare":"Utilization")+"</div></div>";
+    html+="<div class='kpi'><div class='kpi-val' style='color:"+(totalOT>0?"#f59e0b":"#059669")+"'>"+formatHours(totalOT)+"h</div><div class='kpi-label'>"+(lang==="ro"?"Ore Suplimentare":"Overtime")+"</div></div>";
+    html+="<div class='kpi'><div class='kpi-val' style='color:#7c3aed'>"+formatHours(totalHol)+"h</div><div class='kpi-label'>"+(lang==="ro"?"Ore Sărbători":"Holiday Hours")+"</div></div>";
+    html+="<div class='kpi'><div class='kpi-val' style='color:#3b6de6'>"+activeEmps.length+"</div><div class='kpi-label'>"+(lang==="ro"?"Angajați Activi":"Active Employees")+"</div></div>";
+    html+="<div class='kpi'><div class='kpi-val' style='color:#1a1a2e'>"+formatHours(totalWorked)+"h</div><div class='kpi-label'>"+(lang==="ro"?"Total Ore":"Total Hours")+"</div></div>";
+    html+="</div>";
+
+    // Compliance mini-table
+    html+="<table class='compliance-table' style='margin-top:10px'><thead><tr><th style='text-align:left'>"+(lang==="ro"?"Angajat":"Employee")+"</th><th>"+(lang==="ro"?"Contractat":"Contracted")+"</th><th>"+(lang==="ro"?"Lucrat":"Worked")+"</th><th>OT</th><th>"+(lang==="ro"?"Sărbători":"Holidays")+"</th><th>Status</th></tr></thead><tbody>";
+    activeEmps.forEach(emp=>{
+      const d=activeHoursDetail[emp.id]||{normal:0,overtime:0,holiday:0,total:0};
+      const ct=empContractedHours[emp.id]||0;
+      const pct=ct>0?Math.round(d.total/ct*100):0;
+      const statusClass=pct>105?"status-warn":pct<70?"status-err":"status-ok";
+      const statusText=pct>105?(lang==="ro"?"Atenție":"Warning"):pct<70?(lang==="ro"?"Sub norm":"Below norm"):(lang==="ro"?"Conform":"OK");
+      html+="<tr><td style='text-align:left;font-weight:600'>"+emp.name+"</td><td>"+formatHours(ct)+"h</td><td>"+formatHours(d.total)+"h ("+pct+"%)</td><td class='"+(d.overtime>0?"status-warn":"")+"'>"+(d.overtime>0?formatHours(d.overtime)+"h":"–")+"</td><td>"+(d.holiday>0?formatHours(d.holiday)+"h":"–")+"</td><td class='"+statusClass+"'>"+statusText+"</td></tr>";
+    });
+    html+="</tbody></table>";
+
+    // Footer
+    html+="<div class='footer'><span>"+company.name+" · "+mn[curMonth]+" "+curYear+"</span><span>"+(lang==="ro"?"Generat cu WorkSchedulerLite":"Generated with WorkSchedulerLite")+" · "+new Date().toLocaleDateString()+"</span></div>";
+
+    html+="</body></html>";
+    return html;
+  };
+
           {/* Export & Actions Bar */}
           <div style={{
             display:"flex",alignItems:"center",justifyContent:"space-between",
@@ -2181,20 +2328,20 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
             <div style={{display:"flex",gap:4,alignItems:"center",flexWrap:"wrap"}}>
               {/* CSV Export */}
               <button onClick={()=>{
-                const hdr=["Angajat","Funcție","Data","Tip","Detaliu","Ore"];
+                const hdr=lang==="ro"?["Angajat","Funcție","Data","Tip","Detaliu","Ore"]:["Employee","Role","Date","Type","Detail","Hours"];
                 const rows=[];
-                company.employees.forEach(emp=>{
+                company.employees.filter(e=>e.status!=="terminated").forEach(emp=>{
                   Object.entries(company.assignments).forEach(([date,dayA])=>{
                     if(dayA[emp.id]){
                       const ids=Array.isArray(dayA[emp.id])?dayA[emp.id]:[dayA[emp.id]];
                       ids.forEach(sid=>{const sh=company.shifts.find(s=>s.id===sid);
-                        if(sh)rows.push([emp.name,emp.role||"",date,"Tură",sh.name+" ("+sh.start+"-"+sh.end+")",formatHours(shiftDuration(sh.start,sh.end))]);
+                        if(sh)rows.push([emp.name,emp.role||"",date,lang==="ro"?"Tură":"Shift",sh.name+" ("+sh.start+"-"+sh.end+")",formatHours(shiftDuration(sh.start,sh.end))]);
                       });
                     }
                   });
                   Object.entries(company.leaveAssignments||{}).forEach(([date,la])=>{
                     if(la[emp.id]){const lv=(company.leaves||[]).find(l=>l.id===la[emp.id]);
-                      if(lv)rows.push([emp.name,emp.role||"",date,"Concediu",lv.name,"–"]);
+                      if(lv)rows.push([emp.name,emp.role||"",date,lang==="ro"?"Concediu":"Leave",lv.name,"–"]);
                     }
                   });
                 });
@@ -2230,63 +2377,18 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
                 cursor:"pointer",fontSize:10,fontWeight:600,color:th.t2,fontFamily:F,display:"flex",alignItems:"center",gap:4}}>
                 <Icons.Download s={12} c={th.t2}/> Excel
               </button>
-              {/* PDF-like HTML Export */}
+              {/* PDF/HTML Professional Report */}
               <button onClick={()=>{
-                const monthNames=[t.jan,t.feb,t.mar,t.apr,t.may,t.jun,t.jul,t.aug,t.sep,t.oct,t.nov,t.dec];
-                let html="<!DOCTYPE html><html><head><meta charset='UTF-8'/><title>"+company.name+" — "+monthNames[curMonth]+" "+curYear+"</title><style>body{font-family:sans-serif;padding:20px}table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #ddd;padding:4px 6px;text-align:center}th{background:#f0f4fa;font-weight:700}.shift{display:inline-block;padding:1px 4px;border-radius:3px;color:#fff;font-size:9px;font-weight:700}.leave{font-style:italic;font-size:9px}h1{font-size:18px}h2{font-size:14px;color:#666}@media print{body{padding:0}}</style></head><body>";
-                html+="<h1>"+company.name+"</h1><h2>"+monthNames[curMonth]+" "+curYear+"</h2><table><tr><th>Angajat</th>";
-                const days=getDaysInMonth(curYear,curMonth);
-                const dayKeys2=["mon","tue","wed","thu","fri","sat","sun"];
-                const dayN=["L","M","M","J","V","S","D"];
-                for(let d=1;d<=days;d++){const dow=(getFirstDayOfMonth(curYear,curMonth)+d-1)%7;html+="<th>"+dayN[dow]+d+"</th>";}
-                html+="<th>Total</th></tr>";
-                company.employees.forEach(emp=>{
-                  html+="<tr><td style='text-align:left;font-weight:600'>"+emp.name+"</td>";
-                  let totalH=0;
-                  for(let d=1;d<=days;d++){
-                    const date=curYear+"-"+pad2(curMonth+1)+"-"+pad2(d);
-                    const dayA=company.assignments[date]||{};
-                    const raw=dayA[emp.id];const ids=raw?(Array.isArray(raw)?raw:[raw]):[];
-                    const la=(company.leaveAssignments||{})[date]||{};const lvId=la[emp.id];
-                    let cell="";
-                    ids.forEach(sid=>{const sh=company.shifts.find(s=>s.id===sid);if(sh){cell+="<span class='shift' style='background:"+sh.color+"'>"+sh.name+"</span> ";totalH+=shiftDuration(sh.start,sh.end);}});
-                    if(lvId){const lv=(company.leaves||[]).find(l=>l.id===lvId);if(lv)cell+="<span class='leave' style='color:"+lv.color+"'>"+lv.short+"</span>";}
-                    html+="<td>"+cell+"</td>";
-                  }
-                  html+="<td><b>"+formatHours(totalH)+"h</b></td></tr>";
-                });
-                html+="</table></body></html>";
+                const html=generateReportHTML("pdf");
                 const blob=new Blob([html],{type:"text/html"});
-                const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=company.name+"_program.html";a.click();
+                const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=company.name+"_"+[t.jan,t.feb,t.mar,t.apr,t.may,t.jun,t.jul,t.aug,t.sep,t.oct,t.nov,t.dec][curMonth]+"_"+curYear+".html";a.click();
               }} style={{padding:"5px 10px",borderRadius:6,border:`1px solid ${th.bd}`,background:th.cellBg,
                 cursor:"pointer",fontSize:10,fontWeight:600,color:th.t2,fontFamily:F,display:"flex",alignItems:"center",gap:4}}>
                 <Icons.Download s={12} c={th.t2}/> PDF/HTML
               </button>
               {/* Print */}
               <button onClick={()=>{
-                const monthNames=[t.jan,t.feb,t.mar,t.apr,t.may,t.jun,t.jul,t.aug,t.sep,t.oct,t.nov,t.dec];
-                const days=getDaysInMonth(curYear,curMonth);
-                const dayN=["L","M","M","J","V","S","D"];
-                let html="<html><head><title>Print</title><style>body{font-family:sans-serif;font-size:10px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:3px 4px;text-align:center}th{background:#eee}.s{display:inline-block;padding:1px 3px;border-radius:2px;color:#fff;font-size:8px;font-weight:700}</style></head><body>";
-                html+="<h2>"+company.name+" — "+monthNames[curMonth]+" "+curYear+"</h2><table><tr><th>Angajat</th>";
-                for(let d=1;d<=days;d++){const dow=(getFirstDayOfMonth(curYear,curMonth)+d-1)%7;html+="<th>"+dayN[dow]+d+"</th>";}
-                html+="<th>Ore</th></tr>";
-                company.employees.forEach(emp=>{
-                  html+="<tr><td style='text-align:left;font-weight:600;white-space:nowrap'>"+emp.name+"</td>";
-                  let h=0;
-                  for(let d=1;d<=days;d++){
-                    const date=curYear+"-"+pad2(curMonth+1)+"-"+pad2(d);
-                    const dayA=company.assignments[date]||{};const raw=dayA[emp.id];
-                    const ids=raw?(Array.isArray(raw)?raw:[raw]):[];
-                    const la=(company.leaveAssignments||{})[date]||{};const lvId=la[emp.id];
-                    let cell="";
-                    ids.forEach(sid=>{const sh=company.shifts.find(s=>s.id===sid);if(sh){cell+="<span class='s' style='background:"+sh.color+"'>"+sh.name+"</span>";h+=shiftDuration(sh.start,sh.end);}});
-                    if(lvId){const lv=(company.leaves||[]).find(l=>l.id===lvId);if(lv)cell+="<i style='color:"+lv.color+";font-size:8px'>"+lv.short+"</i>";}
-                    html+="<td>"+cell+"</td>";
-                  }
-                  html+="<td><b>"+formatHours(h)+"h</b></td></tr>";
-                });
-                html+="</table></body></html>";
+                const html=generateReportHTML("print");
                 const w=window.open("","_blank","width=1200,height=800");
                 if(w){w.document.write(html);w.document.close();w.focus();setTimeout(()=>w.print(),500);}
               }} style={{padding:"5px 10px",borderRadius:6,border:`1px solid ${th.bd}`,background:th.cellBg,
