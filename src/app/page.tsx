@@ -685,118 +685,127 @@ function Landing({onCreateCompany,onAccessCompany,onDeleteCompany,recentCompanie
   const [pinPromptId,setPinPromptId]=useState(null);
   const [pinInput,setPinInput]=useState("");
 
-  return <div style={{minHeight:"100vh",background:th.bg,fontFamily:F,padding:0}}>
-    {/* Header */}
+  return <div style={{minHeight:"100vh",background:"linear-gradient(180deg,#080c1f 0%,#0d1230 40%,#0a0e27 100%)",fontFamily:F,padding:0,color:"#e2e8ff"}}>
+    {/* ── Aurora Header ── */}
     <header style={{
       padding:"12px 24px",display:"flex",justifyContent:"space-between",alignItems:"center",
-      background:th.hdr,backdropFilter:G.blur,WebkitBackdropFilter:G.blur,
-      borderBottom:`1px solid ${th.bd}`,position:"sticky",top:0,zIndex:100,
+      background:"rgba(13,18,48,0.8)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)",
+      borderBottom:"1px solid rgba(100,140,255,0.1)",position:"sticky",top:0,zIndex:100,
     }}>
       <div style={{display:"flex",alignItems:"center",gap:10}}>
-        <div style={{width:36,height:36,borderRadius:G.rXs,background:th.acG,display:"flex",alignItems:"center",justifyContent:"center"}}>
-          <Icons.Calendar s={18} c="#fff"/>
+        <div style={{width:32,height:32,borderRadius:10,background:"linear-gradient(135deg,#6c8cff,#a78bfa)",
+          display:"flex",alignItems:"center",justifyContent:"center",
+          boxShadow:"0 2px 12px rgba(108,140,255,0.3)"}}>
+          <Icons.Calendar s={16} c="#fff"/>
         </div>
-        <span style={{fontSize:18,fontWeight:800,color:th.tx,letterSpacing:"-0.02em"}}>{t.appName}</span>
+        <span style={{fontSize:16,fontWeight:800,color:"#e2e8ff",letterSpacing:"-0.02em"}}>{t.appName}</span>
       </div>
       <div style={{display:"flex",gap:6,alignItems:"center"}}>
-        <div style={{display:"inline-flex",borderRadius:10,overflow:"hidden",border:`1px solid ${th.bd}`}}>
+        <div style={{display:"inline-flex",borderRadius:10,overflow:"hidden",border:"1px solid rgba(100,140,255,0.2)"}}>
           <button onClick={()=>setLang("ro")} style={{
             padding:"5px 10px",border:"none",cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:F,
-            background:lang==="ro"?th.ac:"transparent",color:lang==="ro"?"#fff":th.t3,transition:"all 0.15s",
+            background:lang==="ro"?"rgba(108,140,255,0.2)":"transparent",color:lang==="ro"?"#8ba3ff":"#5a6a8a",transition:"all 0.15s",
           }}>🇷🇴 RO</button>
           <button onClick={()=>setLang("en")} style={{
             padding:"5px 10px",border:"none",cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:F,
-            background:lang==="en"?th.ac:"transparent",color:lang==="en"?"#fff":th.t3,transition:"all 0.15s",
+            background:lang==="en"?"rgba(108,140,255,0.2)":"transparent",color:lang==="en"?"#8ba3ff":"#5a6a8a",transition:"all 0.15s",
           }}>🇬🇧 EN</button>
         </div>
         <ThemeSwitcher theme={theme} setTheme={setTheme} th={th}/>
       </div>
     </header>
 
-    <div style={{maxWidth:540,margin:"0 auto",padding:"40px 24px 40px"}}>
+    <div style={{maxWidth:480,margin:"0 auto",padding:"48px 24px 40px"}}>
 
-      {/* ── CTA: Create Company ── */}
-      <div onClick={()=>setShowCreate(true)} style={{
-        cursor:"pointer",padding:"20px 24px",borderRadius:G.rL,marginBottom:14,
-        background:"linear-gradient(135deg,#3b6de6 0%,#5b9aff 50%,#93c5fd 100%)",
-        boxShadow:"0 8px 32px rgba(59,109,230,0.25)",
-        display:"flex",alignItems:"center",gap:16,transition:"transform 0.15s,box-shadow 0.15s",
-        position:"relative",overflow:"hidden",
-      }}>
-        <div style={{width:48,height:48,borderRadius:16,background:"rgba(255,255,255,0.2)",
-          backdropFilter:"blur(8px)",WebkitBackdropFilter:"blur(8px)",
-          display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-          <Icons.Plus s={24} c="#fff"/>
+      {/* ── Hero ── */}
+      <div style={{textAlign:"center",marginBottom:36}}>
+        <div style={{fontSize:32,fontWeight:900,color:"#fff",lineHeight:1.1,letterSpacing:"-0.03em"}}>
+          {lang==="ro"?"Planifică mai inteligent.":"Plan smarter."}
         </div>
-        <div>
-          <div style={{fontSize:18,fontWeight:800,color:"#fff"}}>{t.createCompany}</div>
-          <div style={{fontSize:13,color:"rgba(255,255,255,0.8)",marginTop:2}}>{t.tagline}</div>
+        <div style={{fontSize:32,fontWeight:900,lineHeight:1.1,letterSpacing:"-0.03em",
+          background:"linear-gradient(90deg,#6c8cff,#a78bfa,#f472b6)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",
+        }}>
+          {lang==="ro"?"Lucrează mai bine.":"Work better."}
         </div>
-        {/* Decorative blur blob */}
-        <div style={{position:"absolute",right:40,top:-10,width:100,height:100,borderRadius:50,
-          background:"rgba(255,255,255,0.15)",filter:"blur(20px)"}}/>
+        <div style={{fontSize:14,color:"#5a6a8a",marginTop:10}}>
+          {t.tagline}
+        </div>
       </div>
 
-      {/* ── CTA: Access Company ── */}
-      <div onClick={()=>setShowAccess(true)} style={{
-        cursor:"pointer",padding:"16px 24px",borderRadius:G.rL,marginBottom:32,
-        background:"linear-gradient(135deg,#059669 0%,#34d399 50%,#6ee7b7 100%)",
-        boxShadow:"0 6px 24px rgba(5,150,105,0.2)",
-        display:"flex",alignItems:"center",gap:16,transition:"transform 0.15s",
+      {/* ── CTA: Create ── */}
+      <div onClick={()=>setShowCreate(true)} style={{
+        cursor:"pointer",padding:"18px 20px",borderRadius:16,marginBottom:10,
+        background:"rgba(108,140,255,0.06)",border:"1px solid rgba(108,140,255,0.15)",
+        display:"flex",alignItems:"center",gap:14,transition:"all 0.2s",
         position:"relative",overflow:"hidden",
       }}>
-        <div style={{width:44,height:44,borderRadius:14,background:"rgba(255,255,255,0.2)",
-          backdropFilter:"blur(8px)",WebkitBackdropFilter:"blur(8px)",
-          display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-          <Icons.Link s={20} c="#fff"/>
+        <div style={{position:"absolute",top:-30,right:-30,width:80,height:80,borderRadius:40,
+          background:"rgba(108,140,255,0.08)",filter:"blur(20px)"}}/>
+        <div style={{width:44,height:44,borderRadius:14,background:"linear-gradient(135deg,#6c8cff,#4c6ce0)",
+          display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,
+          boxShadow:"0 4px 20px rgba(108,140,255,0.3)"}}>
+          <Icons.Plus s={20} c="#fff"/>
+        </div>
+        <div style={{position:"relative"}}>
+          <div style={{fontSize:16,fontWeight:800,color:"#e2e8ff"}}>{t.createCompany}</div>
+          <div style={{fontSize:11,color:"#5a6a8a",marginTop:2}}>{lang==="ro"?"Începe în 30 de secunde":"Start in 30 seconds"}</div>
+        </div>
+      </div>
+
+      {/* ── CTA: Access ── */}
+      <div onClick={()=>setShowAccess(true)} style={{
+        cursor:"pointer",padding:"14px 20px",borderRadius:14,marginBottom:32,
+        background:"rgba(16,185,129,0.06)",border:"1px solid rgba(16,185,129,0.12)",
+        display:"flex",alignItems:"center",gap:14,transition:"all 0.2s",
+      }}>
+        <div style={{width:40,height:40,borderRadius:12,background:"linear-gradient(135deg,#10b981,#059669)",
+          display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,
+          boxShadow:"0 4px 16px rgba(16,185,129,0.25)"}}>
+          <Icons.Link s={18} c="#fff"/>
         </div>
         <div>
-          <div style={{fontSize:16,fontWeight:800,color:"#fff"}}>{t.joinCompany}</div>
-          <div style={{fontSize:12,color:"rgba(255,255,255,0.8)",marginTop:1}}>{t.enterCode}</div>
+          <div style={{fontSize:14,fontWeight:800,color:"#d1fae5"}}>{t.joinCompany}</div>
+          <div style={{fontSize:11,color:"#5a6a8a",marginTop:1}}>{t.enterCode}</div>
         </div>
       </div>
 
       {/* ── Schedule Mockup Preview ── */}
       <div style={{
-        borderRadius:G.rL,background:th.card,border:`1px solid ${th.gbd}`,
-        boxShadow:th.cardS,backdropFilter:G.blur,WebkitBackdropFilter:G.blur,
-        padding:16,marginBottom:24,overflow:"hidden",
+        borderRadius:16,background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",
+        padding:14,marginBottom:24,overflow:"hidden",
       }}>
         <div style={{textAlign:"center",marginBottom:10}}>
-          <div style={{fontSize:13,fontWeight:800,color:th.tx}}>
+          <div style={{fontSize:13,fontWeight:800,color:"#8ba3ff"}}>
             {lang==="ro"?"Aprilie 2026":"April 2026"}
           </div>
-          <div style={{fontSize:9,color:th.t3,marginTop:2}}>
+          <div style={{fontSize:9,color:"#5a6a8a",marginTop:2}}>
             {lang==="ro"?"Exemplu de program completat":"Sample filled schedule"}
           </div>
         </div>
         {(()=>{
           const mockRO=[
-            {n:"Maria P.",r:"BARISTA",c:"#3b6de6",shifts:[{d:1,s:"Dimineață",sc:"#3b6de6"},{d:2,s:"Dimineață",sc:"#3b6de6"},{d:3,l:"CO"},{d:4,s:"Seara",sc:"#059669"},{d:5,s:"Seara",sc:"#059669"}]},
-            {n:"Ion D.",r:"BARISTA",c:"#f97316",shifts:[{d:1,s:"Seara",sc:"#059669"},{d:2,l:"CM"},{d:3,s:"Dimineață",sc:"#3b6de6"},{d:4,s:"Dimineață",sc:"#3b6de6"},{d:7,s:"Noapte",sc:"#7c3aed"}]},
-            {n:"Ana V.",r:"SERVER",c:"#ec4899",shifts:[{d:1,s:"Noapte",sc:"#7c3aed"},{d:2,s:"Seara",sc:"#059669"},{d:3,s:"Seara",sc:"#059669"},{d:5,s:"Dimineață",sc:"#3b6de6"},{d:6,s:"Dimineață",sc:"#3b6de6"}]},
-            {n:"Gheo M.",r:"SERVER",c:"#10b981",shifts:[{d:2,s:"Dimineață",sc:"#3b6de6"},{d:3,s:"Noapte",sc:"#7c3aed"},{d:4,s:"Noapte",sc:"#7c3aed"},{d:5,s:"Seara",sc:"#059669"},{d:6,s:"Seara",sc:"#059669"}]},
+            {n:"Maria P.",r:"BARISTA",c:"#6c8cff",shifts:[{d:1,s:"Dimineață",sc:"#6c8cff"},{d:2,s:"Dimineață",sc:"#6c8cff"},{d:3,l:"CO"},{d:4,s:"Seara",sc:"#f472b6"},{d:5,s:"Seara",sc:"#f472b6"}]},
+            {n:"Ion D.",r:"BARISTA",c:"#f97316",shifts:[{d:1,s:"Seara",sc:"#f472b6"},{d:2,l:"CM"},{d:3,s:"Dimineață",sc:"#6c8cff"},{d:4,s:"Dimineață",sc:"#6c8cff"},{d:7,s:"Noapte",sc:"#a78bfa"}]},
+            {n:"Ana V.",r:"SERVER",c:"#ec4899",shifts:[{d:1,s:"Noapte",sc:"#a78bfa"},{d:2,s:"Seara",sc:"#f472b6"},{d:3,s:"Seara",sc:"#f472b6"},{d:5,s:"Dimineață",sc:"#6c8cff"},{d:6,s:"Dimineață",sc:"#6c8cff"}]},
+            {n:"Gheo M.",r:"SERVER",c:"#10b981",shifts:[{d:2,s:"Dimineață",sc:"#6c8cff"},{d:3,s:"Noapte",sc:"#a78bfa"},{d:4,s:"Noapte",sc:"#a78bfa"},{d:5,s:"Seara",sc:"#f472b6"},{d:6,s:"Seara",sc:"#f472b6"}]},
           ];
           const mockEN=[
-            {n:"Maria P.",r:"BARISTA",c:"#3b6de6",shifts:[{d:1,s:"Morning",sc:"#3b6de6"},{d:2,s:"Morning",sc:"#3b6de6"},{d:3,l:"PTO"},{d:4,s:"Evening",sc:"#059669"},{d:5,s:"Evening",sc:"#059669"}]},
-            {n:"Ion D.",r:"BARISTA",c:"#f97316",shifts:[{d:1,s:"Evening",sc:"#059669"},{d:2,l:"Sick"},{d:3,s:"Morning",sc:"#3b6de6"},{d:4,s:"Morning",sc:"#3b6de6"},{d:7,s:"Night",sc:"#7c3aed"}]},
-            {n:"Ana V.",r:"SERVER",c:"#ec4899",shifts:[{d:1,s:"Night",sc:"#7c3aed"},{d:2,s:"Evening",sc:"#059669"},{d:3,s:"Evening",sc:"#059669"},{d:5,s:"Morning",sc:"#3b6de6"},{d:6,s:"Morning",sc:"#3b6de6"}]},
-            {n:"Gheo M.",r:"SERVER",c:"#10b981",shifts:[{d:2,s:"Morning",sc:"#3b6de6"},{d:3,s:"Night",sc:"#7c3aed"},{d:4,s:"Night",sc:"#7c3aed"},{d:5,s:"Evening",sc:"#059669"},{d:6,s:"Evening",sc:"#059669"}]},
+            {n:"Maria P.",r:"BARISTA",c:"#6c8cff",shifts:[{d:1,s:"Morning",sc:"#6c8cff"},{d:2,s:"Morning",sc:"#6c8cff"},{d:3,l:"PTO"},{d:4,s:"Evening",sc:"#f472b6"},{d:5,s:"Evening",sc:"#f472b6"}]},
+            {n:"Ion D.",r:"BARISTA",c:"#f97316",shifts:[{d:1,s:"Evening",sc:"#f472b6"},{d:2,l:"Sick"},{d:3,s:"Morning",sc:"#6c8cff"},{d:4,s:"Morning",sc:"#6c8cff"},{d:7,s:"Night",sc:"#a78bfa"}]},
+            {n:"Ana V.",r:"SERVER",c:"#ec4899",shifts:[{d:1,s:"Night",sc:"#a78bfa"},{d:2,s:"Evening",sc:"#f472b6"},{d:3,s:"Evening",sc:"#f472b6"},{d:5,s:"Morning",sc:"#6c8cff"},{d:6,s:"Morning",sc:"#6c8cff"}]},
+            {n:"Gheo M.",r:"SERVER",c:"#10b981",shifts:[{d:2,s:"Morning",sc:"#6c8cff"},{d:3,s:"Night",sc:"#a78bfa"},{d:4,s:"Night",sc:"#a78bfa"},{d:5,s:"Evening",sc:"#f472b6"},{d:6,s:"Evening",sc:"#f472b6"}]},
           ];
           const mock=lang==="ro"?mockRO:mockEN;
           const dayNames=lang==="ro"?["L","M","M","J","V","S","D"]:["M","T","W","T","F","S","S"];
-          const holDay=lang==="ro"?"Paște":"Easter";
           return <div style={{overflowX:"auto"}}>
-            <div style={{minWidth:380}}>
-              {/* Day header */}
-              <div style={{display:"grid",gridTemplateColumns:"80px repeat(7,1fr)",gap:1,marginBottom:2}}>
-                <div style={{fontSize:8,color:th.t3,padding:"2px 4px"}}>{lang==="ro"?"Angajați":"Employees"}</div>
+            <div style={{minWidth:340}}>
+              <div style={{display:"grid",gridTemplateColumns:"70px repeat(7,1fr)",gap:1,marginBottom:2}}>
+                <div style={{fontSize:7,color:"#5a6a8a",padding:"2px 4px"}}>{lang==="ro"?"Angajați":"Employees"}</div>
                 {[1,2,3,4,5,6,7].map(d=><div key={d} style={{
-                  fontSize:8,fontWeight:600,textAlign:"center",padding:"2px 0",
-                  color:d>=6?th.holTx:th.t3,
+                  fontSize:7,fontWeight:600,textAlign:"center",padding:"2px 0",
+                  color:d>=6?"#f472b6":"#5a6a8a",
                 }}>{dayNames[d-1]} {d}</div>)}
               </div>
-              {/* Employee rows */}
               {(()=>{
                 let lastRole="";
                 return mock.map((emp,idx)=>{
@@ -804,39 +813,40 @@ function Landing({onCreateCompany,onAccessCompany,onDeleteCompany,recentCompanie
                   lastRole=emp.r;
                   return <Fragment key={idx}>
                     {showRole&&<div style={{
-                      fontSize:7,fontWeight:800,color:th.ac,textTransform:"uppercase",
-                      padding:"3px 4px",background:th.acS,borderRadius:4,marginBottom:1,marginTop:idx>0?4:0,
+                      fontSize:6,fontWeight:800,color:"#6c8cff",textTransform:"uppercase",
+                      padding:"3px 4px",background:"rgba(108,140,255,0.06)",borderRadius:4,marginBottom:1,marginTop:idx>0?4:0,
                       letterSpacing:"0.05em",
                     }}>{emp.r}</div>}
-                    <div style={{display:"grid",gridTemplateColumns:"80px repeat(7,1fr)",gap:1,marginBottom:1}}>
+                    <div style={{display:"grid",gridTemplateColumns:"70px repeat(7,1fr)",gap:1,marginBottom:1}}>
                       <div style={{display:"flex",alignItems:"center",gap:4,padding:"3px 4px"}}>
                         <div style={{width:16,height:16,borderRadius:6,background:`linear-gradient(135deg,${emp.c},${emp.c}88)`,
                           display:"flex",alignItems:"center",justifyContent:"center",
                           fontSize:7,fontWeight:700,color:"#fff",flexShrink:0}}>
                           {emp.n.charAt(0)}
                         </div>
-                        <span style={{fontSize:9,fontWeight:600,color:th.tx,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{emp.n}</span>
+                        <span style={{fontSize:8,fontWeight:600,color:"#cbd5e1",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{emp.n}</span>
                       </div>
                       {[1,2,3,4,5,6,7].map(d=>{
                         const shift=emp.shifts.find(s=>s.d===d);
                         const isWeekend=d>=6;
                         if(!shift) return <div key={d} style={{
-                          borderRadius:4,minHeight:22,
-                          background:isWeekend?th.holBg:"transparent",
-                          border:`0.5px solid ${th.bd2}`,
+                          borderRadius:4,minHeight:20,
+                          background:isWeekend?"rgba(255,255,255,0.02)":"transparent",
+                          border:"0.5px solid rgba(255,255,255,0.04)",
                         }}/>;
                         if(shift.l) return <div key={d} style={{
-                          borderRadius:4,minHeight:22,
-                          background:shift.l==="CO"||shift.l==="PTO"?"rgba(34,197,94,0.12)":"rgba(239,68,68,0.1)",
-                          border:`0.5px solid ${shift.l==="CO"||shift.l==="PTO"?"rgba(34,197,94,0.3)":"rgba(239,68,68,0.2)"}`,
+                          borderRadius:4,minHeight:20,
+                          background:shift.l==="CO"||shift.l==="PTO"?"rgba(16,185,129,0.1)":"rgba(239,68,68,0.08)",
+                          border:`0.5px solid ${shift.l==="CO"||shift.l==="PTO"?"rgba(16,185,129,0.2)":"rgba(239,68,68,0.15)"}`,
                           display:"flex",alignItems:"center",justifyContent:"center",
                         }}>
                           <span style={{fontSize:7,fontWeight:700,fontStyle:"italic",
-                            color:shift.l==="CO"||shift.l==="PTO"?"#059669":"#dc2626"}}>{shift.l}</span>
+                            color:shift.l==="CO"||shift.l==="PTO"?"#34d399":"#f87171"}}>{shift.l}</span>
                         </div>;
                         return <div key={d} style={{
-                          borderRadius:4,minHeight:22,background:shift.sc,
+                          borderRadius:4,minHeight:20,background:`linear-gradient(135deg,${shift.sc},${shift.sc}cc)`,
                           display:"flex",alignItems:"center",justifyContent:"center",
+                          boxShadow:`0 1px 4px ${shift.sc}30`,
                         }}>
                           <span style={{fontSize:6,fontWeight:600,color:"#fff"}}>{shift.s}</span>
                         </div>;
@@ -845,17 +855,13 @@ function Landing({onCreateCompany,onAccessCompany,onDeleteCompany,recentCompanie
                   </Fragment>;
                 });
               })()}
-              {/* Legend */}
               <div style={{display:"flex",gap:8,justifyContent:"center",marginTop:8,flexWrap:"wrap"}}>
-                {[
-                  {c:"#3b6de6",l:lang==="ro"?"Dimineață":"Morning"},
-                  {c:"#059669",l:lang==="ro"?"Seara":"Evening"},
-                  {c:"#7c3aed",l:lang==="ro"?"Noapte":"Night"},
-                ].map(({c:co,l},i)=><span key={i} style={{display:"flex",alignItems:"center",gap:3,fontSize:8,color:th.t2}}>
-                  <div style={{width:6,height:6,borderRadius:2,background:co}}/>{l}
-                </span>)}
-                <span style={{display:"flex",alignItems:"center",gap:3,fontSize:8,color:th.t2}}>
-                  <div style={{width:6,height:6,borderRadius:2,background:"rgba(34,197,94,0.3)",border:"0.5px solid rgba(34,197,94,0.5)"}}/>{lang==="ro"?"Concediu":"Leave"}
+                {[{c:"#6c8cff",l:lang==="ro"?"Dimineață":"Morning"},{c:"#f472b6",l:lang==="ro"?"Seara":"Evening"},{c:"#a78bfa",l:lang==="ro"?"Noapte":"Night"}].map(({c:co,l},i)=>
+                  <span key={i} style={{display:"flex",alignItems:"center",gap:3,fontSize:7,color:"#5a6a8a"}}>
+                    <div style={{width:6,height:6,borderRadius:2,background:co,boxShadow:`0 0 4px ${co}40`}}/>{l}
+                  </span>)}
+                <span style={{display:"flex",alignItems:"center",gap:3,fontSize:7,color:"#5a6a8a"}}>
+                  <div style={{width:6,height:6,borderRadius:2,background:"rgba(16,185,129,0.3)",border:"0.5px solid rgba(16,185,129,0.5)"}}/>{lang==="ro"?"Concediu":"Leave"}
                 </span>
               </div>
             </div>
@@ -863,73 +869,76 @@ function Landing({onCreateCompany,onAccessCompany,onDeleteCompany,recentCompanie
         })()}
       </div>
 
+      {/* ── Feature pills ── */}
+      <div style={{display:"flex",flexWrap:"wrap",gap:6,justifyContent:"center",marginBottom:32}}>
+        {[
+          {ic:"👥",tx:t.f1},{ic:"🔄",tx:t.f2},{ic:"🇷🇴",tx:t.f3},
+          {ic:"📋",tx:t.f4},{ic:"🔗",tx:t.f5},{ic:"🔓",tx:t.f6},
+        ].map((f,i)=><div key={i} style={{
+          padding:"6px 12px",borderRadius:20,background:"rgba(108,140,255,0.06)",
+          border:"1px solid rgba(108,140,255,0.1)",
+          fontSize:10,color:"#8ba3ff",fontWeight:600,
+          display:"flex",alignItems:"center",gap:5,
+        }}>
+          <span style={{fontSize:12}}>{f.ic}</span>{f.tx}
+        </div>)}
+      </div>
+
       {/* ── Recent Companies ── */}
       {recentCompanies.length>0 && <div>
-        <h3 style={{fontSize:12,fontWeight:700,color:th.t3,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:10}}>{t.recentCompanies}</h3>
+        <h3 style={{fontSize:11,fontWeight:700,color:"#5a6a8a",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:10}}>{t.recentCompanies}</h3>
         <div style={{display:"flex",flexDirection:"column",gap:6}}>
-          {recentCompanies.map(c=><GCard key={c.id} th={th} style={{
-            padding:"12px 16px",display:"flex",alignItems:"center",gap:12,
+          {recentCompanies.map(c=><div key={c.id} style={{
+            padding:"12px 16px",borderRadius:14,background:"rgba(255,255,255,0.03)",
+            border:"1px solid rgba(255,255,255,0.06)",display:"flex",alignItems:"center",gap:12,
           }}>
             <div style={{display:"flex",alignItems:"center",gap:10,flex:1,cursor:"pointer",minWidth:0}}
               onClick={()=>{setPinPromptId(pinPromptId===c.id?null:c.id);setPinInput("");}}>
               <span style={{fontSize:22}}>{COUNTRIES.find(x=>x.code===c.country)?.flag||"🏢"}</span>
               <div style={{minWidth:0,flex:1}}>
-                <div style={{fontSize:14,fontWeight:700,color:th.tx,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>
-                <div style={{fontSize:11,color:th.t3}}>{c.empCount||0} {t.employees.toLowerCase()}</div>
-                {/* PIN input inline */}
+                <div style={{fontSize:14,fontWeight:700,color:"#e2e8ff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>
+                <div style={{fontSize:11,color:"#5a6a8a"}}>{c.empCount||0} {t.employees.toLowerCase()}</div>
                 {pinPromptId===c.id&&<div style={{display:"flex",gap:4,marginTop:6,alignItems:"center"}} onClick={e=>e.stopPropagation()}>
                   <GInput th={th} type="password" value={pinInput} onChange={e=>setPinInput(e.target.value)}
-                    placeholder={t.enterPin} style={{padding:"5px 8px",fontSize:11,flex:1}}
+                    placeholder={t.enterPin} style={{padding:"5px 8px",fontSize:11,flex:1,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(100,140,255,0.2)",color:"#e2e8ff"}}
                     onKeyDown={e=>{if(e.key==="Enter"&&pinInput)onAccessCompany(c.id,pinInput)}}
                     autoFocus/>
                   <button onClick={()=>{if(pinInput)onAccessCompany(c.id,pinInput)}} style={{
                     padding:"5px 12px",borderRadius:6,border:"none",cursor:"pointer",
-                    background:th.acG,color:"#fff",fontSize:10,fontWeight:700,fontFamily:F,
+                    background:"linear-gradient(135deg,#6c8cff,#5b78e8)",color:"#fff",fontSize:10,fontWeight:700,fontFamily:F,
                   }}>{t.access}</button>
                 </div>}
               </div>
             </div>
             <button onClick={()=>{setPinPromptId(pinPromptId===c.id?null:c.id);setPinInput("");}}
               style={{background:"none",border:"none",cursor:"pointer",padding:4,flexShrink:0}}>
-              <Icons.ChevRight s={18} c={th.t3}/>
+              <Icons.ChevRight s={18} c="#5a6a8a"/>
             </button>
             {confirmDeleteId===c.id?<div style={{display:"flex",gap:4,alignItems:"center",flexShrink:0}}>
               <button onClick={()=>{onDeleteCompany(c.id);setConfirmDeleteId(null)}}
-                style={{background:th.er,color:"#fff",border:"none",borderRadius:6,padding:"4px 10px",fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+                style={{background:"#dc2626",color:"#fff",border:"none",borderRadius:6,padding:"4px 10px",fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:F}}>
                 Da
               </button>
               <button onClick={()=>setConfirmDeleteId(null)}
-                style={{background:th.t3+"30",color:th.t2,border:"none",borderRadius:6,padding:"4px 8px",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:F}}>
+                style={{background:"rgba(255,255,255,0.1)",color:"#8892ab",border:"none",borderRadius:6,padding:"4px 8px",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:F}}>
                 Nu
               </button>
             </div>:<button onClick={()=>setConfirmDeleteId(c.id)}
               style={{background:"none",border:"none",cursor:"pointer",padding:4,flexShrink:0}}>
-              <Icons.X s={16} c={th.t3}/>
+              <Icons.X s={16} c="#5a6a8a"/>
             </button>}
-          </GCard>)}
-        </div>
-      </div>}
-
-      {/* ── Features ── */}
-      {recentCompanies.length===0&&<div style={{marginTop:20}}>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-          {[
-            {ic:"👥",tx:t.f1},{ic:"🔄",tx:t.f2},{ic:"🇷🇴",tx:t.f3},
-            {ic:"📋",tx:t.f4},{ic:"🔗",tx:t.f5},{ic:"🔓",tx:t.f6},
-          ].map((f,i)=><GCard key={i} th={th} style={{padding:"14px 10px",textAlign:"center"}}>
-            <div style={{fontSize:22,marginBottom:4}}>{f.ic}</div>
-            <div style={{fontSize:10,fontWeight:600,color:th.t2}}>{f.tx}</div>
-          </GCard>)}
+          </div>)}
         </div>
       </div>}
     </div>
 
-    {/* Footer */}
-    <div style={{textAlign:"center",padding:"24px",borderTop:`1px solid ${th.bd}`}}>
-      <p style={{fontSize:12,color:th.t3,margin:0}}>{t.poweredBy}</p>
+    {/* ── Footer ── */}
+    <div style={{textAlign:"center",padding:"24px",borderTop:"1px solid rgba(255,255,255,0.04)"}}>
+      <p style={{fontSize:12,color:"#5a6a8a",margin:0}}>{t.poweredBy}</p>
     </div>
 
-    {/* CREATE MODAL */}
+
+        {/* CREATE MODAL */}
     <Modal open={showCreate} onClose={()=>setShowCreate(false)} title={t.createCompany} th={th} wide>
       <div style={{display:"flex",flexDirection:"column",gap:16}}>
         <div>
