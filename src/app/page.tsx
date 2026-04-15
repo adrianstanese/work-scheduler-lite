@@ -1272,6 +1272,9 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
   const [showShare,setShowShare]=useState(false);
   const [showAdminSettings,setShowAdminSettings]=useState(false);
   const [showLeaveLegend,setShowLeaveLegend]=useState(false);
+  const [shiftsOpen,setShiftsOpen]=useState(true);
+  const [leavesOpen,setLeavesOpen]=useState(true);
+  const [otherLeavesOpen,setOtherLeavesOpen]=useState(false);
   const [editCompanyName,setEditCompanyName]=useState("");
   const [editCompanyCountry,setEditCompanyCountry]=useState("");
   const [editOpDays,setEditOpDays]=useState({});
@@ -1658,20 +1661,27 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
         padding:14,overflow:"auto",maxHeight:"calc(100vh - 81px)",
         display:"flex",flexDirection:"column",gap:10,
       }}>
-        {/* Add Employee button */}
+        {/* Sticky Add Employee button */}
         <button onClick={()=>setShowAddEmp(true)} style={{
-          width:"100%",padding:"10px 14px",borderRadius:G.rS,border:`1px dashed ${th.ac}40`,
+          width:"100%",padding:"10px 14px",borderRadius:G.rS,border:`1.5px dashed ${th.ac}40`,
           background:th.acS,color:th.ac,fontSize:12,fontWeight:700,fontFamily:F,
           cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6,
-          transition:"all 0.15s",
+          transition:"all 0.15s",position:"sticky",top:0,zIndex:5,
         }}><Icons.Plus s={14} c={th.ac}/> {t.addEmployee}</button>
 
-        {/* 2-COLUMN: Employees | Shifts+Leaves */}
-        <div style={{display:"flex",gap:10,flex:1,minHeight:0}}>
+        {/* ── OPTION B: 65/35 SPLIT with accent bar, grouped leaves, status badges ── */}
+        <div style={{display:"flex",gap:8,flex:1,minHeight:0}}>
 
-          {/* ── Employees Column ── */}
-          <div style={{flex:1,minWidth:0,overflow:"auto",display:"flex",flexDirection:"column",gap:4}}>
-            <span style={{fontSize:10,fontWeight:700,color:th.t3,textTransform:"uppercase",letterSpacing:"0.06em"}}>{t.employees} ({company.employees.length})</span>
+          {/* ═══ LEFT 65%: Employees ═══ */}
+          <div style={{flex:65,minWidth:0,overflow:"auto",display:"flex",flexDirection:"column",gap:2}}>
+            {/* Collapsible header */}
+            <div style={{
+              display:"flex",justifyContent:"space-between",alignItems:"center",padding:"2px 0",
+            }}>
+              <span style={{fontSize:10,fontWeight:700,color:th.t3,textTransform:"uppercase",letterSpacing:"0.06em"}}>
+                {t.employees} ({company.employees.length})
+              </span>
+            </div>
             {company.employees.length===0&&<p style={{fontSize:11,color:th.t3,textAlign:"center",padding:"12px 0"}}>{t.noEmployees}</p>}
 
             {(()=>{
@@ -1680,143 +1690,210 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
               sorted.forEach(emp=>{const r=(emp.role||"GENERAL").toUpperCase();if(!groups[r])groups[r]=[];groups[r].push(emp);});
               return Object.entries(groups).map(([role,emps])=><div key={role}>
                 {Object.keys(groups).length>1&&<div style={{
-                  fontSize:8,fontWeight:800,color:th.ac,textTransform:"uppercase",letterSpacing:"0.06em",
-                  padding:"3px 6px",marginBottom:2,background:th.acS,borderRadius:6,
+                  fontSize:7,fontWeight:800,color:th.ac,textTransform:"uppercase",letterSpacing:"0.06em",
+                  padding:"2px 6px",marginBottom:2,marginTop:4,background:th.acS,borderRadius:4,
                 }}>{role}</div>}
                 {emps.map(emp=>{
                   const isSelected=selEmp===emp.id;
+                  const isTerm=emp.status==="terminated";
+                  const d=empMonthHoursDetail[emp.id]||{normal:0,overtime:0,holiday:0,total:0};
+                  const ct=empContractedHours[emp.id]||0;
                   return <div key={emp.id}
                     onClick={()=>{setSelEmp(isSelected?null:emp.id);if(!isSelected){setSelShift(null);setSelLeave(null);}}}
                     style={{
-                      padding:"6px 8px",borderRadius:G.rS,cursor:"pointer",marginBottom:3,
-                      border:`1px solid ${isSelected?th.ac:th.bd2}`,
+                      padding:"6px 8px",borderRadius:G.rS,cursor:"pointer",marginBottom:2,
+                      border:isSelected?`2px solid ${th.ac}`:`1px solid ${isTerm?th.bd2:th.bd2}`,
                       background:isSelected?th.acS:"transparent",
                       display:"flex",alignItems:"center",gap:6,transition:"all 0.2s",
+                      position:"relative",opacity:isTerm?0.5:1,
+                      boxShadow:isSelected?`0 0 12px ${th.ac}20`:"none",
                     }}>
+                    {/* Left accent bar for selected */}
+                    {isSelected&&<div style={{
+                      position:"absolute",left:-1,top:6,bottom:6,width:3,borderRadius:2,background:th.ac,
+                    }}/>}
+                    {/* Avatar */}
                     <div style={{
-                      width:24,height:24,borderRadius:8,
-                      background:emp.status==="terminated"?th.t3+"60":(isSelected?th.acG:"linear-gradient(135deg,"+th.t3+","+th.t2+")"),
+                      width:26,height:26,borderRadius:8,flexShrink:0,
+                      background:isTerm?th.t3+"50":(isSelected?th.acG:`linear-gradient(135deg,${th.t3},${th.t2})`),
                       display:"flex",alignItems:"center",justifyContent:"center",
-                      fontSize:10,fontWeight:700,color:"#fff",flexShrink:0,
-                      opacity:emp.status==="terminated"?0.5:1,
+                      fontSize:11,fontWeight:700,color:"#fff",
                     }}>{emp.name.charAt(0).toUpperCase()}</div>
+                    {/* Info */}
                     <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:11,fontWeight:700,color:emp.status==="terminated"?th.t3:th.tx,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
-                        textDecoration:emp.status==="terminated"?"line-through":"none"}}>
+                      <div style={{fontSize:11,fontWeight:700,color:isTerm?th.t3:th.tx,
+                        overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
+                        textDecoration:isTerm?"line-through":"none"}}>
                         {emp.name}
-                        {emp.status==="terminated"&&<span style={{fontSize:7,color:th.er,fontWeight:800,marginLeft:4,textDecoration:"none",display:"inline"}}>ÎNCHEIAT</span>}
                       </div>
-                      <div style={{display:"flex",alignItems:"center",gap:3,marginTop:1,flexWrap:"wrap"}}>
-                        {(()=>{
-                          const d=empMonthHoursDetail[emp.id]||{normal:0,overtime:0,holiday:0,total:0};
-                          const ct=empContractedHours[emp.id]||0;
-                          return <span style={{fontSize:9,display:"inline-flex",gap:2,alignItems:"center"}}>
-                            <span style={{fontWeight:600,color:d.total>=ct*0.9?th.ok:th.t2}}>{formatHours(d.total)}h</span>
-                            <span style={{color:th.t3}}>/</span>
-                            <span style={{color:th.t3}}>{formatHours(ct)}h</span>
-                            {d.overtime>0&&<span style={{color:th.warn,fontWeight:700,fontSize:8}}> +{formatHours(d.overtime)}OT</span>}
-                            {d.holiday>0&&<span style={{color:"#d946ef",fontWeight:700,fontSize:8}}> +{formatHours(d.holiday)}x2</span>}
-                          </span>;
-                        })()}
+                      {/* Hours line */}
+                      <div style={{display:"flex",alignItems:"center",gap:3,marginTop:2}}>
+                        <span style={{fontSize:9,fontWeight:600,color:d.total>=ct*0.9?th.ok:th.t2}}>{formatHours(d.total)}h</span>
+                        <span style={{fontSize:9,color:th.t3}}>/ {formatHours(ct)}h</span>
+                        {d.overtime>0&&<span style={{fontSize:7,color:th.warn,fontWeight:700}}>+{formatHours(d.overtime)}OT</span>}
+                        {d.holiday>0&&<span style={{fontSize:7,color:"#d946ef",fontWeight:700}}>+{formatHours(d.holiday)}x2</span>}
+                      </div>
+                      {/* Status badge */}
+                      <div style={{display:"flex",gap:4,alignItems:"center",marginTop:2}}>
+                        {isTerm?<span style={{
+                          fontSize:7,padding:"1px 5px",borderRadius:8,fontWeight:700,
+                          background:th.er+"15",color:th.er,
+                        }}>{t.terminated} {emp.endDate?emp.endDate.slice(5).replace("-","."):""}</span>
+                        :<span style={{
+                          fontSize:7,padding:"1px 5px",borderRadius:8,fontWeight:700,
+                          background:th.ok+"15",color:th.ok,
+                        }}>{t.active}</span>}
+                        {emp.startDate&&<span style={{fontSize:7,color:th.t3}}>
+                          {lang==="ro"?"din":"from"} {emp.startDate.slice(5).replace("-",".")}
+                        </span>}
                       </div>
                     </div>
-                    <button onClick={e=>{e.stopPropagation();openEditEmp(emp)}}
-                      style={{background:"none",border:"none",cursor:"pointer",padding:2,flexShrink:0}}>
-                      <Icons.Edit s={10} c={th.t3}/>
-                    </button>
-                    <button onClick={e=>{e.stopPropagation();deleteEmployee(emp.id)}}
-                      style={{background:"none",border:"none",cursor:"pointer",padding:2,flexShrink:0}}>
-                      <Icons.Trash s={10} c={th.t3}/>
-                    </button>
+                    {/* Action buttons */}
+                    <div style={{display:"flex",flexDirection:"column",gap:2,flexShrink:0}}>
+                      <button onClick={e=>{e.stopPropagation();openEditEmp(emp)}}
+                        style={{background:"none",border:"none",cursor:"pointer",padding:2}}>
+                        <Icons.Edit s={10} c={th.t3}/>
+                      </button>
+                      <button onClick={e=>{e.stopPropagation();deleteEmployee(emp.id)}}
+                        style={{background:"none",border:"none",cursor:"pointer",padding:2}}>
+                        <Icons.Trash s={10} c={th.t3}/>
+                      </button>
+                    </div>
                   </div>;
                 })}
               </div>);
             })()}
           </div>
 
-          {/* ── Right: Shifts + Leaves ── */}
-          <div style={{width:120,flexShrink:0,overflow:"auto",display:"flex",flexDirection:"column",gap:8,
+          {/* ═══ RIGHT 35%: Shifts + Leaves ═══ */}
+          <div style={{flex:35,flexShrink:0,overflow:"auto",display:"flex",flexDirection:"column",gap:6,
             borderLeft:`1px solid ${th.bd2}`,paddingLeft:8}}>
-            {/* Shifts */}
+
+            {/* ── Shifts Section (collapsible) ── */}
             <div>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                <span style={{fontSize:9,fontWeight:700,color:th.t3,textTransform:"uppercase",letterSpacing:"0.06em"}}>{t.shifts}</span>
-                <button onClick={()=>setShowAddShift(true)} style={{background:"none",border:"none",cursor:"pointer",padding:1}}>
+                <div onClick={()=>setShiftsOpen(p=>!p)} style={{
+                  display:"flex",alignItems:"center",gap:4,cursor:"pointer",
+                }}>
+                  <span style={{fontSize:9,fontWeight:700,color:th.t3,textTransform:"uppercase",letterSpacing:"0.06em"}}>
+                    {t.shifts} ({company.shifts.length})
+                  </span>
+                  <span style={{fontSize:8,color:th.t3,transform:shiftsOpen?"rotate(180deg)":"rotate(0deg)",
+                    transition:"transform 0.2s",display:"inline-block"}}>▼</span>
+                </div>
+                <button onClick={()=>setShowAddShift(true)} style={{
+                  background:"none",border:"none",cursor:"pointer",padding:1,
+                  position:"sticky",top:0,
+                }}>
                   <Icons.Plus s={12} c={th.ac}/>
                 </button>
               </div>
-              {company.shifts.length===0&&<button onClick={()=>setShowAddShift(true)} style={{
-                width:"100%",padding:"8px 6px",borderRadius:G.rXs,border:`1px dashed ${th.ac}40`,
-                background:th.acS,color:th.ac,fontSize:9,fontWeight:700,fontFamily:F,cursor:"pointer",
-              }}>{t.addShift}</button>}
-              <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                {company.shifts.map((s,idx)=>{
-                  const isShiftSel=selShift===s.id;
-                  const isDragOver=dragOverIdx===idx;
-                  return <div key={s.id}
-                    draggable onDragStart={()=>setDragIdx(idx)}
-                    onDragOver={e=>{e.preventDefault();setDragOverIdx(idx);}}
-                    onDragLeave={()=>setDragOverIdx(null)}
-                    onDrop={e=>{e.preventDefault();handleShiftReorder(dragIdx,idx);setDragIdx(null);setDragOverIdx(null);}}
-                    onDragEnd={()=>{setDragIdx(null);setDragOverIdx(null);}}
-                    onClick={()=>{if(selEmp){setSelShift(isShiftSel?null:s.id);setSelLeave(null);}}}
-                    style={{
-                      padding:"4px 6px",borderRadius:6,cursor:selEmp?"pointer":"grab",
-                      border:`1px solid ${isShiftSel?s.color:th.bd2}`,
-                      background:isShiftSel?s.color+"22":"transparent",
-                      display:"flex",alignItems:"center",gap:4,transition:"all 0.15s",
-                      opacity:dragIdx===idx?0.4:1,
-                    }}>
-                    <div style={{width:8,height:8,borderRadius:3,background:s.color,flexShrink:0}}/>
-                    <span style={{fontSize:9,fontWeight:isShiftSel?700:500,color:isShiftSel?th.tx:th.t2,
-                      flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</span>
-                    <button onClick={e=>{e.stopPropagation();deleteShift(s.id)}}
-                      style={{background:"none",border:"none",cursor:"pointer",padding:0,flexShrink:0}}>
-                      <Icons.Trash s={8} c={th.t3}/>
-                    </button>
-                  </div>;
-                })}
-              </div>
+              {shiftsOpen&&<>
+                {company.shifts.length===0&&<button onClick={()=>setShowAddShift(true)} style={{
+                  width:"100%",padding:"6px",borderRadius:G.rXs,border:`1px dashed ${th.ac}40`,
+                  background:th.acS,color:th.ac,fontSize:9,fontWeight:700,fontFamily:F,cursor:"pointer",
+                }}>{t.addShift}</button>}
+                <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                  {company.shifts.map((s,idx)=>{
+                    const isShiftSel=selShift===s.id;
+                    return <div key={s.id}
+                      draggable onDragStart={()=>setDragIdx(idx)}
+                      onDragOver={e=>{e.preventDefault();setDragOverIdx(idx);}}
+                      onDragLeave={()=>setDragOverIdx(null)}
+                      onDrop={e=>{e.preventDefault();handleShiftReorder(dragIdx,idx);setDragIdx(null);setDragOverIdx(null);}}
+                      onDragEnd={()=>{setDragIdx(null);setDragOverIdx(null);}}
+                      onClick={()=>{if(selEmp){setSelShift(isShiftSel?null:s.id);setSelLeave(null);}}}
+                      style={{
+                        padding:"4px 6px",borderRadius:6,cursor:selEmp?"pointer":"grab",
+                        border:`1px solid ${isShiftSel?s.color:th.bd2}`,
+                        background:isShiftSel?s.color+"22":"transparent",
+                        display:"flex",alignItems:"center",gap:4,transition:"all 0.15s",
+                        opacity:dragIdx===idx?0.4:1,
+                      }}>
+                      <div style={{width:8,height:8,borderRadius:3,background:s.color,flexShrink:0}}/>
+                      <span style={{fontSize:9,fontWeight:isShiftSel?700:500,color:isShiftSel?th.tx:th.t2,
+                        flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</span>
+                      <button onClick={e=>{e.stopPropagation();deleteShift(s.id)}}
+                        style={{background:"none",border:"none",cursor:"pointer",padding:0,flexShrink:0}}>
+                        <Icons.Trash s={8} c={th.t3}/>
+                      </button>
+                    </div>;
+                  })}
+                </div>
+              </>}
             </div>
+
             <div style={{height:1,background:th.bd}}/>
-            {/* Leaves */}
+
+            {/* ── Leaves Section (collapsible + grouped) ── */}
             <div>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                <span style={{fontSize:9,fontWeight:700,color:th.t3,textTransform:"uppercase",letterSpacing:"0.06em"}}>{t.leaves}</span>
-                <button onClick={()=>setShowAddLeave(true)} style={{background:"none",border:"none",cursor:"pointer",padding:1}}>
-                  <Icons.Plus s={12} c={th.ac}/>
-                </button>
+                <div onClick={()=>setLeavesOpen(p=>!p)} style={{
+                  display:"flex",alignItems:"center",gap:4,cursor:"pointer",
+                }}>
+                  <span style={{fontSize:9,fontWeight:700,color:th.t3,textTransform:"uppercase",letterSpacing:"0.06em"}}>
+                    {t.leaves} ({(company.leaves||[]).length})
+                  </span>
+                  <span style={{fontSize:8,color:th.t3,transform:leavesOpen?"rotate(180deg)":"rotate(0deg)",
+                    transition:"transform 0.2s",display:"inline-block"}}>▼</span>
+                </div>
+                <div style={{display:"flex",gap:4,alignItems:"center"}}>
+                  <button onClick={()=>setShowAddLeave(true)} style={{background:"none",border:"none",cursor:"pointer",padding:1}}>
+                    <Icons.Plus s={12} c={th.ac}/>
+                  </button>
+                  {(company.leaves||[]).length>0&&<div onClick={()=>setShowLeaveLegend(true)} style={{
+                    width:16,height:16,borderRadius:8,background:th.t3+"25",
+                    display:"flex",alignItems:"center",justifyContent:"center",
+                    cursor:"pointer",fontSize:9,fontWeight:800,color:th.t3,
+                  }}>?</div>}
+                </div>
               </div>
-              {(company.leaves||[]).length===0&&<p style={{fontSize:9,color:th.t3,textAlign:"center"}}>{t.noLeaves}</p>}
-              <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                {(company.leaves||[]).map(lv=>{
-                  const isLvSel=selLeave===lv.id;
-                  return <div key={lv.id}
-                    onClick={()=>{if(selEmp){setSelLeave(isLvSel?null:lv.id);setSelShift(null);}}}
-                    style={{
-                      padding:"4px 5px",borderRadius:5,cursor:selEmp?"pointer":"default",
-                      border:`1.5px solid ${isLvSel?lv.color:lv.color+"40"}`,
-                      background:isLvSel?lv.color+"30":lv.color+"10",
-                      display:"flex",alignItems:"center",gap:5,transition:"all 0.12s",
-                    }}>
-                    <div style={{width:10,height:10,borderRadius:3,background:lv.color,flexShrink:0}}/>
-                    <span style={{fontSize:10,fontWeight:700,color:isLvSel?lv.color:th.tx,
-                      flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{lv.short}</span>
-                    <button onClick={e=>{e.stopPropagation();deleteLeave(lv.id)}}
-                      style={{background:"none",border:"none",cursor:"pointer",padding:0,flexShrink:0}}>
-                      <Icons.Trash s={9} c={th.t3}/>
-                    </button>
-                  </div>;
-                })}
-              </div>
-              {(company.leaves||[]).length>0&&<div style={{display:"flex",justifyContent:"center",marginTop:4}}>
-              <div onClick={()=>setShowLeaveLegend(true)} style={{
-                width:20,height:20,borderRadius:10,background:th.t3+"30",
-                display:"flex",alignItems:"center",justifyContent:"center",
-                cursor:"pointer",fontSize:11,fontWeight:800,color:th.t3,
-                border:`1px solid ${th.t3}40`,
-              }}>?</div>
-            </div>}
+              {leavesOpen&&<>
+                {(company.leaves||[]).length===0&&<p style={{fontSize:9,color:th.t3,textAlign:"center"}}>{t.noLeaves}</p>}
+                {(()=>{
+                  const allLeaves=company.leaves||[];
+                  const frequent=allLeaves.filter(lv=>["CO","CM"].includes(lv.short));
+                  const others=allLeaves.filter(lv=>!["CO","CM"].includes(lv.short));
+                  const renderLeave=(lv)=>{
+                    const isLvSel=selLeave===lv.id;
+                    return <div key={lv.id}
+                      onClick={()=>{if(selEmp){setSelLeave(isLvSel?null:lv.id);setSelShift(null);}}}
+                      style={{
+                        padding:"4px 5px",borderRadius:5,cursor:selEmp?"pointer":"default",
+                        border:`1.5px solid ${isLvSel?lv.color:lv.color+"40"}`,
+                        background:isLvSel?lv.color+"30":lv.color+"10",
+                        display:"flex",alignItems:"center",gap:4,transition:"all 0.12s",
+                      }}>
+                      <div style={{width:9,height:9,borderRadius:3,background:lv.color,flexShrink:0}}/>
+                      <span style={{fontSize:9,fontWeight:700,color:isLvSel?lv.color:th.tx,
+                        flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{lv.short}</span>
+                      <button onClick={e=>{e.stopPropagation();deleteLeave(lv.id)}}
+                        style={{background:"none",border:"none",cursor:"pointer",padding:0,flexShrink:0}}>
+                        <Icons.Trash s={8} c={th.t3}/>
+                      </button>
+                    </div>;
+                  };
+                  return <>
+                    {frequent.length>0&&<div style={{display:"flex",flexDirection:"column",gap:2,marginBottom:4}}>
+                      {frequent.map(renderLeave)}
+                    </div>}
+                    {others.length>0&&<>
+                      <div onClick={()=>setOtherLeavesOpen(p=>!p)} style={{
+                        padding:"4px 6px",borderRadius:5,cursor:"pointer",textAlign:"center",
+                        background:th.t3+"08",fontSize:8,fontWeight:600,color:th.t3,
+                        display:"flex",alignItems:"center",justifyContent:"center",gap:3,marginBottom:2,
+                      }}>
+                        <span>{otherLeavesOpen?(lang==="ro"?"Ascunde":"Hide"):(lang==="ro"?`+${others.length} concedii`:`+${others.length} more`)}</span>
+                        <span style={{fontSize:7,transform:otherLeavesOpen?"rotate(180deg)":"rotate(0deg)",
+                          transition:"transform 0.2s",display:"inline-block"}}>▼</span>
+                      </div>
+                      {otherLeavesOpen&&<div style={{display:"flex",flexDirection:"column",gap:2}}>
+                        {others.map(renderLeave)}
+                      </div>}
+                    </>}
+                  </>;
+                })()}
+              </>}
             </div>
           </div>
         </div>
