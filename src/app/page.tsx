@@ -1088,6 +1088,56 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
     if(dayA[empId])onRemove(date,empId);
   };
 
+  // ── Drag-to-paint: hold mouse and drag across days to assign continuously ──
+  const isPainting=useRef(false);
+  const paintEmpId=useRef(null);
+
+  const startPaint=(date,empId)=>{
+    if(!isAdmin||!isEmpActiveOnDate(empId,date))return;
+    if(!selectedShift&&!selectedLeave)return;
+    if(selectedEmp&&selectedEmp!==empId)return;
+    isPainting.current=true;
+    paintEmpId.current=empId;
+    handleCellClick(date,empId);
+  };
+
+  const continuePaint=(date,empId)=>{
+    if(!isPainting.current)return;
+    if(empId!==paintEmpId.current)return;
+    if(!isEmpActiveOnDate(empId,date))return;
+    handleCellClick(date,empId);
+  };
+
+  const stopPaint=()=>{
+    isPainting.current=false;
+    paintEmpId.current=null;
+  };
+
+  // ── Drag-and-drop shifts between employees ──
+  const dragShiftRef=useRef(null);
+
+  const onShiftDragStart=(e,date,empId,shiftId)=>{
+    dragShiftRef.current={date,empId,shiftId};
+    e.dataTransfer.effectAllowed="move";
+    e.dataTransfer.setData("text/plain",shiftId);
+  };
+
+  const onCellDragOver=(e)=>{
+    if(dragShiftRef.current) e.preventDefault();
+  };
+
+  const onCellDrop=(e,targetDate,targetEmpId)=>{
+    e.preventDefault();
+    const src=dragShiftRef.current;
+    if(!src)return;
+    if(!isEmpActiveOnDate(targetEmpId,targetDate))return;
+    // Remove from source
+    onRemove(src.date,src.empId);
+    // Assign to target
+    onAssign(targetDate,targetEmpId,src.shiftId);
+    dragShiftRef.current=null;
+  };
+
   const empTotalHours=(empId)=>{
     let total=0;
     dayCols.forEach(({date})=>{
@@ -1106,7 +1156,7 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
   const colW=`minmax(80px,1fr)`;
   const gridCols=`180px repeat(${days},${colW}) 56px`;
 
-  return <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+  return <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch"}} onMouseUp={stopPaint} onMouseLeave={stopPaint}>
     <div style={{minWidth:days*82+240}}>
       {/* ── HEADER ROW ── */}
       <div style={{display:"grid",gridTemplateColumns:gridCols,gap:0,
@@ -1199,25 +1249,35 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
               const isSunday=dow===6;
 
               return <div key={d}
+                onMouseDown={(e)=>{if(e.button===0)startPaint(date,emp.id);}}
+                onMouseEnter={()=>continuePaint(date,emp.id)}
                 onClick={()=>empActive&&handleCellClick(date,emp.id)}
                 onContextMenu={e=>empActive?handleRightClick(e,date,emp.id):e.preventDefault()}
+                onDragOver={onCellDragOver}
+                onDrop={e=>onCellDrop(e,date,emp.id)}
                 style={{
                   padding:"4px 3px",
                   borderRight:isSunday?`2px solid ${th.bd}`:`1px dotted ${th.bd2}`,
                   background:!empActive?th.t3+"08":(isTodayCol?th.ac+"06":(isWeekend&&!isNonWorking?th.t3+"04":(isNonWorking?th.holBg+"40":"transparent"))),
-                  cursor:canClick?"pointer":"default",
+                  cursor:canClick?"crosshair":"default",
                   display:"flex",flexDirection:"column",alignItems:"stretch",justifyContent:"center",
                   gap:2,minHeight:56,transition:"background 0.1s",
                   opacity:empActive?1:0.25,
                   pointerEvents:empActive?"auto":"none",
+                  userSelect:"none",
                 }}>
                 {!empActive&&<div style={{fontSize:8,color:th.t3,textAlign:"center"}}>—</div>}
                 {/* Shift cards — Agendrix style */}
-                {shifts.map((sh,i)=><div key={sh.id+i} style={{
+                {shifts.map((sh,i)=><div key={sh.id+i}
+                  draggable={isAdmin}
+                  onDragStart={e=>onShiftDragStart(e,date,emp.id,sh.id)}
+                  style={{
                   padding:"3px 5px",borderRadius:4,
                   background:sh.color+"12",
                   borderLeft:`3px solid ${sh.color}`,
                   fontSize:8,lineHeight:1.3,
+                  cursor:isAdmin?"grab":"default",
+                  userSelect:"none",
                 }}>
                   <div style={{fontWeight:700,color:th.tx}}>{sh.start}-{sh.end}</div>
                   <div style={{color:th.t3,fontSize:7,marginTop:1}}>{sh.name}</div>
