@@ -1590,9 +1590,6 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
     return result;
   },[company,workedData,curMonth,curYear,holidays,empContractedHours]);
 
-  // ── Active hours detail based on viewMode ──
-  const activeHoursDetail=viewMode==="worked"?empWorkedHoursDetail:empMonthHoursDetail;
-
   const addEmployee=()=>{
     if(!newEmpName.trim())return;
     if(company.employees.length>=MAX_EMPS){showToast(t.maxEmps,"warn");return;}
@@ -1815,6 +1812,8 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
     const r={};Object.entries(empMonthHoursDetail).forEach(([id,d])=>{r[id]=d.total});return r;
   },[empMonthHoursDetail]);
 
+  // ── Active hours detail based on viewMode ──
+  const activeHoursDetail=viewMode==="worked"?empWorkedHoursDetail:empMonthHoursDetail;
 
   const openAdminSettings=()=>{
     setEditCompanyName(company.name);
@@ -2602,9 +2601,9 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
                 }
               });
               prevTotalOT=Math.max(0,prevTotalWorked-prevTotalContracted);
-              const curTotalWorked=Object.values(empMonthHoursDetail).reduce((s,d)=>s+d.total,0);
-              const curTotalOT=Object.values(empMonthHoursDetail).reduce((s,d)=>s+d.overtime,0);
-              const curTotalHol=Object.values(empMonthHoursDetail).reduce((s,d)=>s+d.holiday,0);
+              const curTotalWorked=Object.values(activeHoursDetail).reduce((s,d)=>s+d.total,0);
+              const curTotalOT=Object.values(activeHoursDetail).reduce((s,d)=>s+d.overtime,0);
+              const curTotalHol=Object.values(activeHoursDetail).reduce((s,d)=>s+d.holiday,0);
               const curTotalContracted=Object.values(empContractedHours).reduce((s,v)=>s+v,0);
               const curUtil=curTotalContracted>0?Math.round(curTotalWorked/curTotalContracted*100):0;
               const prevUtil=prevTotalContracted>0?Math.round((prevTotalWorked+prevTotalHol)/prevTotalContracted*100):0;
