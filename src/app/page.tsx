@@ -1414,6 +1414,10 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
   const [curMonth,setCurMonth]=useState(new Date().getMonth());
   const [curYear,setCurYear]=useState(new Date().getFullYear());
   const [showAddEmp,setShowAddEmp]=useState(false);
+  const [showBulkUpload,setShowBulkUpload]=useState(false);
+  const [bulkData,setBulkData]=useState([]);
+  const [bulkError,setBulkError]=useState("");
+  const [bulkFileName,setBulkFileName]=useState("");
   const [showAddShift,setShowAddShift]=useState(false);
   const [showShare,setShowShare]=useState(false);
   const [showAdminSettings,setShowAdminSettings]=useState(false);
@@ -1582,6 +1586,101 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
   };
 
 
+
+  // ── Bulk Upload: CSV/Excel parsing with smart column detection ──
+  const downloadTemplate=()=>{
+    const headers=lang==="ro"
+      ?["Nume","Funcție","Ore pe zi","Zile CO/an","Data angajării"]
+      :["Name","Role","Hours per day","PTO days/year","Start date"];
+    const example1=lang==="ro"
+      ?["Maria Popescu","BARISTA","8","21","2026-01-15"]
+      :["Maria Popescu","BARISTA","8","21","2026-01-15"];
+    const example2=lang==="ro"
+      ?["Ion Dumitrescu","SERVER","6","21","2025-09-01"]
+      :["Ion Dumitrescu","SERVER","6","21","2025-09-01"];
+    const csv="\uFEFF"+[headers,example1,example2].map(r=>r.join(",")).join("\n");
+    const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+    a.download="employees_template.csv";a.click();
+  };
+
+  const detectColumns=(headers)=>{
+    const h=headers.map(s=>s.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g,""));
+    const nameIdx=h.findIndex(s=>s.includes("name")||s.includes("nume")||s.includes("angajat")||s.includes("employee"));
+    const roleIdx=h.findIndex(s=>s.includes("role")||s.includes("functie")||s.includes("pozitie")||s.includes("position")||s.includes("job"));
+    const hoursIdx=h.findIndex(s=>s.includes("hour")||s.includes("ore")||s.includes("hrs")||s.includes("program"));
+    const ptoIdx=h.findIndex(s=>s.includes("pto")||s.includes("co")||s.includes("vacation")||s.includes("concediu")||s.includes("zile"));
+    const dateIdx=h.findIndex(s=>s.includes("start")||s.includes("data")||s.includes("date")||s.includes("angajare")||s.includes("hire"));
+    return {nameIdx,roleIdx,hoursIdx,ptoIdx,dateIdx};
+  };
+
+  const parseCSVLine=(line)=>{
+    const result=[];let current="";let inQuotes=false;
+    for(let i=0;i<line.length;i++){
+      const ch=line[i];
+      if(ch==='"'){inQuotes=!inQuotes;}
+      else if((ch===","||ch===";"||ch==="\t")&&!inQuotes){result.push(current.trim());current="";}
+      else{current+=ch;}
+    }
+    result.push(current.trim());
+    return result;
+  };
+
+  const handleBulkFile=(e)=>{
+    const file=e.target.files?.[0];
+    if(!file){return;}
+    setBulkFileName(file.name);
+    setBulkError("");
+    setBulkData([]);
+    const reader=new FileReader();
+    reader.onload=(ev)=>{
+      try{
+        const text=ev.target?.result;
+        if(!text||typeof text!=="string"){setBulkError(lang==="ro"?"Fișierul nu poate fi citit":"File cannot be read");return;}
+        const lines=text.split(/\r?\n/).filter(l=>l.trim());
+        if(lines.length<2){setBulkError(lang==="ro"?"Fișierul trebuie să aibă cel puțin 2 rânduri (antet + date)":"File needs at least 2 rows (header + data)");return;}
+        const headers=parseCSVLine(lines[0]);
+        const cols=detectColumns(headers);
+        if(cols.nameIdx===-1){setBulkError(lang==="ro"?"Coloana 'Nume' nu a fost detectată. Verifică antetul.":"Column 'Name' not detected. Check header row.");return;}
+        const parsed=[];
+        for(let i=1;i<lines.length;i++){
+          const row=parseCSVLine(lines[i]);
+          if(!row[cols.nameIdx]?.trim())continue;
+          const name=row[cols.nameIdx]?.trim()||"";
+          const role=cols.roleIdx>=0?(row[cols.roleIdx]?.trim()||"").toUpperCase():"";
+          const hours=cols.hoursIdx>=0?Number(row[cols.hoursIdx])||8:8;
+          const pto=cols.ptoIdx>=0?(row[cols.ptoIdx]?.trim()?Number(row[cols.ptoIdx]):null):null;
+          let startDate=null;
+          if(cols.dateIdx>=0&&row[cols.dateIdx]?.trim()){
+            const raw=row[cols.dateIdx].trim();
+            const m1=raw.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+            const m2=raw.match(/^(\d{1,2})[-\/\.](\d{1,2})[-\/\.](\d{4})$/);
+            if(m1)startDate=`${m1[1]}-${m1[2].padStart(2,"0")}-${m1[3].padStart(2,"0")}`;
+            else if(m2)startDate=`${m2[3]}-${m2[2].padStart(2,"0")}-${m2[1].padStart(2,"0")}`;
+          }
+          const exists=company.employees.some(emp=>emp.name.toLowerCase()===name.toLowerCase());
+          parsed.push({name,role,hours,pto,startDate,exists,include:!exists});
+        }
+        if(parsed.length===0){setBulkError(lang==="ro"?"Niciun angajat valid găsit":"No valid employees found");return;}
+        setBulkData(parsed);
+      }catch(err){setBulkError(lang==="ro"?"Eroare la citirea fișierului":"Error reading file");}
+    };
+    reader.readAsText(file);
+  };
+
+  const importBulkEmployees=()=>{
+    const toImport=bulkData.filter(d=>d.include&&!d.exists);
+    if(toImport.length===0)return;
+    const remaining=MAX_EMPS-company.employees.length;
+    const batch=toImport.slice(0,remaining);
+    const newEmps=batch.map(d=>({
+      id:uid(),name:d.name,role:d.role,hoursPerDay:d.hours,
+      ptoDays:d.pto,startDate:d.startDate,endDate:null,status:"active",
+    }));
+    onUpdate({...company,employees:[...company.employees,...newEmps]});
+    setShowBulkUpload(false);setBulkData([]);setBulkFileName("");
+    showToast(lang==="ro"?`${newEmps.length} angajați importați`:`${newEmps.length} employees imported`);
+  };
 
   const addEmployee=()=>{
     if(!newEmpName.trim())return;
@@ -2087,13 +2186,23 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
         padding:14,overflow:"auto",maxHeight:"calc(100vh - 81px)",
         display:"flex",flexDirection:"column",gap:10,
       }}>
-        {/* Sticky Add Employee button */}
-        <button onClick={()=>setShowAddEmp(true)} style={{
-          width:"100%",padding:"10px 14px",borderRadius:G.rS,border:`1.5px dashed ${th.ac}40`,
-          background:th.acS,color:th.ac,fontSize:12,fontWeight:700,fontFamily:F,
-          cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6,
-          transition:"all 0.15s",position:"sticky",top:0,zIndex:5,
-        }}><Icons.Plus s={14} c={th.ac}/> {t.addEmployee}</button>
+        {/* Sticky Add Employee buttons */}
+        <div style={{display:"flex",gap:4,position:"sticky",top:0,zIndex:5}}>
+          <button onClick={()=>setShowAddEmp(true)} style={{
+            flex:1,padding:"10px 12px",borderRadius:G.rS,border:`1.5px dashed ${th.ac}40`,
+            background:th.acS,color:th.ac,fontSize:11,fontWeight:700,fontFamily:F,
+            cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:5,
+            transition:"all 0.15s",
+          }}><Icons.Plus s={12} c={th.ac}/> {t.addEmployee}</button>
+          <button onClick={()=>setShowBulkUpload(true)} style={{
+            padding:"10px 12px",borderRadius:G.rS,border:`1.5px dashed ${th.ac}40`,
+            background:th.acS,color:th.ac,fontSize:11,fontWeight:700,fontFamily:F,
+            cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:4,
+            transition:"all 0.15s",
+          }} title={lang==="ro"?"Import din Excel/CSV":"Import from Excel/CSV"}>
+            <Icons.Download s={12} c={th.ac}/> CSV
+          </button>
+        </div>
 
         {/* ── OPTION B: 65/35 SPLIT with accent bar, grouped leaves, status badges ── */}
         <div style={{display:"flex",gap:8,flex:1,minHeight:0}}>
@@ -2804,6 +2913,95 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
         <GBtn primary th={th} onClick={addEmployee} disabled={!newEmpName.trim()}>
           <Icons.Plus s={14} c="#fff"/> {t.save}
         </GBtn>
+      </div>
+    </Modal>
+
+    {/* BULK UPLOAD MODAL */}
+    <Modal open={showBulkUpload} onClose={()=>{setShowBulkUpload(false);setBulkData([]);setBulkError("");setBulkFileName("");}}
+      title={lang==="ro"?"Import Angajați din CSV/Excel":"Import Employees from CSV/Excel"} th={th} wide>
+      <div style={{display:"flex",flexDirection:"column",gap:14}}>
+        {/* Template download */}
+        <div style={{padding:"10px 14px",borderRadius:G.rXs,background:th.acS,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div>
+            <div style={{fontSize:12,fontWeight:700,color:th.ac}}>{lang==="ro"?"Descarcă template":"Download template"}</div>
+            <div style={{fontSize:10,color:th.t3,marginTop:2}}>{lang==="ro"?"CSV cu coloanele necesare și exemple":"CSV with required columns and examples"}</div>
+          </div>
+          <button onClick={downloadTemplate} style={{
+            padding:"6px 14px",borderRadius:6,border:"none",cursor:"pointer",
+            background:th.acG,color:"#fff",fontSize:11,fontWeight:700,fontFamily:F,
+          }}>{lang==="ro"?"Descarcă":"Download"}</button>
+        </div>
+
+        {/* File upload */}
+        <div style={{padding:"16px",borderRadius:G.rS,border:`2px dashed ${th.bd}`,background:th.cellBg,textAlign:"center"}}>
+          <div style={{fontSize:12,fontWeight:600,color:th.t2,marginBottom:6}}>
+            {bulkFileName||((lang==="ro"?"Încarcă fișier CSV sau Excel":"Upload CSV or Excel file"))}
+          </div>
+          <input type="file" accept=".csv,.tsv,.txt,.xls,.xlsx" onChange={handleBulkFile}
+            style={{fontSize:11,fontFamily:F,color:th.t2}}/>
+          <div style={{fontSize:9,color:th.t3,marginTop:6}}>
+            {lang==="ro"?"Acceptă: CSV, TSV, TXT (delimitat cu virgulă, punct și virgulă sau tab)":"Accepts: CSV, TSV, TXT (comma, semicolon, or tab delimited)"}
+          </div>
+        </div>
+
+        {/* Auto-detection info */}
+        {bulkData.length>0&&<div style={{padding:"8px 12px",borderRadius:G.rXs,background:th.okBg}}>
+          <span style={{fontSize:11,fontWeight:600,color:th.ok}}>
+            ✅ {bulkData.length} {lang==="ro"?"angajați detectați":"employees detected"}
+            {bulkData.filter(d=>d.exists).length>0&&<span style={{color:th.warn}}> ({bulkData.filter(d=>d.exists).length} {lang==="ro"?"deja există":"already exist"})</span>}
+          </span>
+        </div>}
+
+        {/* Error */}
+        {bulkError&&<div style={{padding:"8px 12px",borderRadius:G.rXs,background:th.erBg}}>
+          <span style={{fontSize:11,fontWeight:600,color:th.er}}>❌ {bulkError}</span>
+        </div>}
+
+        {/* Preview table */}
+        {bulkData.length>0&&<div style={{overflowX:"auto",maxHeight:240,overflowY:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:10,fontFamily:F}}>
+            <thead><tr style={{background:th.bd2}}>
+              <th style={{padding:"6px 8px",textAlign:"center",fontWeight:700,color:th.t2,width:30}}></th>
+              <th style={{padding:"6px 8px",textAlign:"left",fontWeight:700,color:th.t2}}>{lang==="ro"?"Nume":"Name"}</th>
+              <th style={{padding:"6px 8px",textAlign:"left",fontWeight:700,color:th.t2}}>{lang==="ro"?"Funcție":"Role"}</th>
+              <th style={{padding:"6px 8px",textAlign:"center",fontWeight:700,color:th.t2}}>{lang==="ro"?"Ore/zi":"Hrs/day"}</th>
+              <th style={{padding:"6px 8px",textAlign:"center",fontWeight:700,color:th.t2}}>PTO</th>
+              <th style={{padding:"6px 8px",textAlign:"center",fontWeight:700,color:th.t2}}>{lang==="ro"?"Data start":"Start date"}</th>
+              <th style={{padding:"6px 8px",textAlign:"center",fontWeight:700,color:th.t2}}>Status</th>
+            </tr></thead>
+            <tbody>{bulkData.map((d,i)=><tr key={i} style={{
+              borderBottom:`1px solid ${th.bd2}`,opacity:d.exists?0.4:1,
+            }}>
+              <td style={{padding:"4px 8px",textAlign:"center"}}>
+                {!d.exists&&<input type="checkbox" checked={d.include}
+                  onChange={()=>{const n=[...bulkData];n[i]={...n[i],include:!n[i].include};setBulkData(n);}}
+                  style={{accentColor:th.ac,cursor:"pointer"}}/>}
+              </td>
+              <td style={{padding:"4px 8px",fontWeight:600,color:th.tx}}>{d.name}</td>
+              <td style={{padding:"4px 8px",color:th.t2}}>{d.role||"–"}</td>
+              <td style={{padding:"4px 8px",textAlign:"center",color:th.t2}}>{d.hours}h</td>
+              <td style={{padding:"4px 8px",textAlign:"center",color:th.t2}}>{d.pto!=null?d.pto:"–"}</td>
+              <td style={{padding:"4px 8px",textAlign:"center",color:th.t2}}>{d.startDate||"–"}</td>
+              <td style={{padding:"4px 8px",textAlign:"center"}}>
+                {d.exists?<span style={{fontSize:9,padding:"2px 6px",borderRadius:6,background:th.warnBg,color:th.warn,fontWeight:700}}>
+                  {lang==="ro"?"Există":"Exists"}
+                </span>:<span style={{fontSize:9,padding:"2px 6px",borderRadius:6,background:th.okBg,color:th.ok,fontWeight:700}}>
+                  {lang==="ro"?"Nou":"New"}
+                </span>}
+              </td>
+            </tr>)}</tbody>
+          </table>
+        </div>}
+
+        {/* Import button */}
+        {bulkData.filter(d=>d.include&&!d.exists).length>0&&<GBtn primary th={th} onClick={importBulkEmployees}>
+          <Icons.Plus s={14} c="#fff"/> {lang==="ro"?`Importă ${bulkData.filter(d=>d.include&&!d.exists).length} angajați`:`Import ${bulkData.filter(d=>d.include&&!d.exists).length} employees`}
+        </GBtn>}
+
+        {/* Max limit warning */}
+        {company.employees.length>=MAX_EMPS&&<div style={{padding:"8px 12px",borderRadius:G.rXs,background:th.warnBg}}>
+          <span style={{fontSize:11,fontWeight:600,color:th.warn}}>⚠️ {t.maxEmps}</span>
+        </div>}
       </div>
     </Modal>
 
