@@ -1038,9 +1038,7 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
     sat:{active:false},sun:{active:false},
   };
   const dayNamesShort=[t.mon,t.tue,t.wed,t.thu,t.fri,t.sat,t.sun];
-  const monthNames=[t.jan,t.feb,t.mar,t.apr,t.may,t.jun,t.jul,t.aug,t.sep,t.oct,t.nov,t.dec];
 
-  // Build day columns data
   const dayCols=[];
   for(let d=1;d<=days;d++){
     const date=`${year}-${pad2(month+1)}-${pad2(d)}`;
@@ -1051,7 +1049,6 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
     dayCols.push({d,date,dow,isClosedDay,hol,isNonWorking});
   }
 
-  // Group employees by role
   const grouped=useMemo(()=>{
     const emps=filterEmpId?company.employees.filter(e=>e.id===filterEmpId):[...company.employees];
     const sorted=emps.sort((a,b)=>(a.role||"zzz").toUpperCase().localeCompare((b.role||"zzz").toUpperCase()));
@@ -1064,7 +1061,6 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
     return Object.entries(roles).sort(([a],[b])=>a.localeCompare(b));
   },[company.employees,filterEmpId]);
 
-  // Check if a date falls within employee's employment period
   const isEmpActiveOnDate=(empId,date)=>{
     const emp=company.employees.find(e=>e.id===empId);
     if(!emp)return false;
@@ -1086,14 +1082,12 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
   const handleRightClick=(e,date,empId)=>{
     e.preventDefault();
     if(!isAdmin)return;
-    if(!isEmpActiveOnDate(empId,date))return;
-    const raw=(company.assignments[date]||{})[empId];
-    if(raw) onRemove(date,empId);
-    const la=(company.leaveAssignments||{})[date];
-    if(la&&la[empId]) onRemoveLeave(date,empId);
+    const la=(company.leaveAssignments||{})[date]||{};
+    if(la[empId]){onRemoveLeave(date,empId);return;}
+    const dayA=company.assignments[date]||{};
+    if(dayA[empId])onRemove(date,empId);
   };
 
-  // Calc total hours per employee for this month
   const empTotalHours=(empId)=>{
     let total=0;
     dayCols.forEach(({date})=>{
@@ -1109,51 +1103,49 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
     return total;
   };
 
-  const colW=`minmax(36px,1fr)`;
-  const gridCols=`160px repeat(${days},${colW}) 60px`;
+  const colW=`minmax(80px,1fr)`;
+  const gridCols=`180px repeat(${days},${colW}) 56px`;
 
   return <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
-    <div style={{minWidth:days*38+220}}>
-      {/* ── HEADER ROW: day numbers + day names ── */}
+    <div style={{minWidth:days*82+240}}>
+      {/* ── HEADER ROW ── */}
       <div style={{display:"grid",gridTemplateColumns:gridCols,gap:0,
-        position:"sticky",top:0,zIndex:10,background:th.bg,
+        position:"sticky",top:0,zIndex:10,background:th.card,
+        borderBottom:`2px solid ${th.bd}`,
       }}>
-        {/* Employee name col header */}
-        <div style={{padding:"4px 8px",borderBottom:`2px solid ${th.bd}`,fontSize:11,fontWeight:700,color:th.t3}}>
+        <div style={{padding:"8px 12px",fontSize:11,fontWeight:700,color:th.t3,
+          position:"sticky",left:0,zIndex:15,background:th.card,
+          display:"flex",alignItems:"center",
+        }}>
           {t.employees}
         </div>
-        {/* Day headers */}
         {dayCols.map(({d,dow,isNonWorking,hol})=>{
           const isTodayH=isToday(d);
-          const isWeekendH=dow>=5;
-          const isSundayH=dow===6;
+          const isWeekend=dow>=5;
+          const isSunday=dow===6;
           return <div key={d} style={{
-          padding:"2px 0",borderBottom:isTodayH?`3px solid ${th.ac}`:`2px solid ${th.bd}`,textAlign:"center",
-          background:isTodayH?th.ac+"12":(isNonWorking?th.holBg+"80":(isWeekendH?th.t3+"08":"transparent")),
-          borderRight:isSundayH?`2px dashed ${th.bd}`:`none`,
-        }}>
-          <div style={{fontSize:9,fontWeight:600,color:isNonWorking?th.holTx:th.t3,lineHeight:1}}>
-            {dayNamesShort[dow]}
-          </div>
-          <div style={{fontSize:12,fontWeight:700,color:isNonWorking?th.holTx:isToday(d)?th.ac:th.tx,lineHeight:1.2}}>
-            {d}
-          </div>
-          {hol&&<div style={{fontSize:6,color:th.holTx,lineHeight:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",padding:"0 1px"}}>{hol}</div>}
-        </div>;})}
-        {/* Total col header */}
-        <div style={{padding:"4px 2px",borderBottom:`2px solid ${th.bd}`,textAlign:"center",fontSize:9,fontWeight:700,color:th.t3}}>
+            padding:"4px 6px",textAlign:"center",
+            background:isTodayH?th.ac+"10":(isNonWorking?th.holBg+"60":(isWeekend?th.t3+"06":"transparent")),
+            borderBottom:isTodayH?`3px solid ${th.ac}`:"none",
+            borderRight:isSunday?`2px solid ${th.bd}`:`1px dotted ${th.bd2}`,
+          }}>
+            <div style={{fontSize:10,fontWeight:500,color:isNonWorking?th.holTx:th.t3}}>{dayNamesShort[dow]}</div>
+            <div style={{fontSize:14,fontWeight:700,color:isTodayH?th.ac:(isNonWorking?th.holTx:th.tx)}}>{d}</div>
+            {hol&&<div style={{fontSize:6,color:th.holTx,lineHeight:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{hol}</div>}
+          </div>;
+        })}
+        <div style={{padding:"8px 4px",textAlign:"center",fontSize:10,fontWeight:700,color:th.t3}}>
           Total
         </div>
       </div>
 
-      {/* ── EMPLOYEE ROWS grouped by role ── */}
+      {/* ── EMPLOYEE ROWS ── */}
       {grouped.map(([role,emps])=><div key={role}>
-        {/* Role separator */}
         {grouped.length>1&&<div style={{
-          display:"grid",gridTemplateColumns:gridCols,gap:0,
+          display:"grid",gridTemplateColumns:gridCols,
         }}>
           <div style={{
-            gridColumn:`1 / -1`,padding:"6px 8px",
+            gridColumn:`1 / -1`,padding:"6px 12px",
             background:th.acS,borderBottom:`1px solid ${th.bd}`,borderTop:`1px solid ${th.bd}`,
             fontSize:11,fontWeight:800,color:th.ac,textTransform:"uppercase",letterSpacing:"0.06em",
           }}>
@@ -1161,41 +1153,36 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
           </div>
         </div>}
 
-        {/* Employee rows */}
         {emps.map(emp=>{
           const isEmpSel=selectedEmp===emp.id;
           const totalH=empTotalHours(emp.id);
-          const contracted=emp.hoursPerDay||8;
+          const isTerm=emp.status==="terminated";
 
           return <div key={emp.id} style={{
             display:"grid",gridTemplateColumns:gridCols,gap:0,
-            background:isEmpSel?th.acS+"50":"transparent",
-            transition:"background 0.15s",
+            background:isEmpSel?th.ac+"06":"transparent",
             borderBottom:`1px solid ${th.bd2}`,
+            transition:"background 0.15s",
+            minHeight:56,
           }}>
-            {/* Employee name cell */}
+            {/* Employee name cell — sticky */}
             <div style={{
-              padding:"6px 8px",display:"flex",alignItems:"center",gap:6,
+              padding:"8px 12px",display:"flex",alignItems:"center",gap:8,
               borderRight:`1px solid ${th.bd}`,
               position:"sticky",left:0,zIndex:5,
               background:isEmpSel?th.acS:th.card,
-              backdropFilter:G.blurS,WebkitBackdropFilter:G.blurS,
-              cursor:"pointer",
-            }} onClick={()=>{
-              if(isAdmin){
-                const newSel=isEmpSel?null:emp.id;
-                // We use onAssign with special params to signal employee selection
-                // Actually we can't set parent state from here, but the row highlight works via selectedEmp
-              }
-            }}>
+              cursor:"pointer",opacity:isTerm?0.4:1,
+            }} onClick={()=>{if(isAdmin){}}}>
               <div style={{
-                width:22,height:22,borderRadius:11,background:isEmpSel?th.acG:th.t3+"50",
+                width:28,height:28,borderRadius:14,flexShrink:0,
+                background:isTerm?th.t3+"40":(isEmpSel?th.acG:`linear-gradient(135deg,${th.t3}80,${th.t2}80)`),
                 display:"flex",alignItems:"center",justifyContent:"center",
-                fontSize:10,fontWeight:700,color:"#fff",flexShrink:0,
+                fontSize:11,fontWeight:700,color:"#fff",
               }}>{emp.name.charAt(0).toUpperCase()}</div>
               <div style={{minWidth:0,flex:1}}>
-                <div style={{fontSize:11,fontWeight:700,color:th.tx,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{emp.name}</div>
-                <div style={{fontSize:9,color:th.t3}}>{contracted}h/zi</div>
+                <div style={{fontSize:12,fontWeight:700,color:isTerm?th.t3:th.tx,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
+                  textDecoration:isTerm?"line-through":"none"}}>{emp.name}</div>
+                <div style={{fontSize:10,color:totalH>0?th.ac:th.t3,fontWeight:600,marginTop:1}}>{formatHours(totalH)}h</div>
               </div>
             </div>
 
@@ -1210,52 +1197,49 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
               const leave=leaveId?(company.leaves||[]).find(l=>l.id===leaveId):null;
               const empActive=isEmpActiveOnDate(emp.id,date);
               const canClick=isAdmin&&empActive&&(selectedShift||selectedLeave)&&(selectedEmp===emp.id||!selectedEmp);
-
               const isTodayCol=isToday(d);
               const isWeekend=dow>=5;
               const isSunday=dow===6;
+
               return <div key={d}
                 onClick={()=>empActive&&handleCellClick(date,emp.id)}
                 onContextMenu={e=>empActive?handleRightClick(e,date,emp.id):e.preventDefault()}
-                title={!empActive?(emp.startDate&&date<emp.startDate?"Înainte de angajare":"După încetare"):hol||""}
                 style={{
-                  padding:2,
-                  borderRight:isSunday?`2px dashed ${th.bd}`:`1px solid ${th.bd2}`,
-                  background:!empActive?th.t3+"12":(isTodayCol?th.ac+"0A":(isWeekend&&!isNonWorking?th.t3+"06":(isNonWorking?th.holBg:(leave?leave.color+"12":"transparent")))),
+                  padding:"4px 3px",
+                  borderRight:isSunday?`2px solid ${th.bd}`:`1px dotted ${th.bd2}`,
+                  background:!empActive?th.t3+"08":(isTodayCol?th.ac+"06":(isWeekend&&!isNonWorking?th.t3+"04":(isNonWorking?th.holBg+"40":"transparent"))),
                   cursor:canClick?"pointer":"default",
-                  display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
-                  boxShadow:isTodayCol?`inset 0 0 0 1px ${th.ac}25`:"none",
-                  gap:1,minHeight:40,transition:"background 0.1s",
-                  opacity:empActive?1:0.3,
+                  display:"flex",flexDirection:"column",alignItems:"stretch",justifyContent:"center",
+                  gap:2,minHeight:56,transition:"background 0.1s",
+                  opacity:empActive?1:0.25,
                   pointerEvents:empActive?"auto":"none",
                 }}>
-                {/* Disabled diagonal line for inactive dates */}
-                {!empActive&&<div style={{
-                  fontSize:8,color:th.t3,fontWeight:600,
-                }}>—</div>}
-                {/* Shift badges */}
+                {!empActive&&<div style={{fontSize:8,color:th.t3,textAlign:"center"}}>—</div>}
+                {/* Shift cards — Agendrix style */}
                 {shifts.map((sh,i)=><div key={sh.id+i} style={{
-                  padding:"1px 2px",borderRadius:3,width:"100%",
-                  background:sh.color,color:"#fff",fontSize:7,fontWeight:700,
-                  textAlign:"center",lineHeight:1.2,
-                  overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
-                }}>{sh.name}</div>)}
+                  padding:"3px 5px",borderRadius:4,
+                  background:sh.color+"12",
+                  borderLeft:`3px solid ${sh.color}`,
+                  fontSize:8,lineHeight:1.3,
+                }}>
+                  <div style={{fontWeight:700,color:th.tx}}>{sh.start}-{sh.end}</div>
+                  <div style={{color:th.t3,fontSize:7,marginTop:1}}>{sh.name}</div>
+                </div>)}
                 {/* Leave badge */}
                 {leave&&<div style={{
-                  padding:"1px 2px",borderRadius:3,width:"100%",
-                  background:leave.color+"30",color:leave.color,fontSize:7,fontWeight:700,
-                  textAlign:"center",lineHeight:1.2,fontStyle:"italic",
-                  border:`1px solid ${leave.color}40`,
+                  padding:"3px 5px",borderRadius:4,
+                  background:leave.color+"15",borderLeft:`3px solid ${leave.color}`,
+                  fontSize:8,fontWeight:700,color:leave.color,fontStyle:"italic",
                 }}>{leave.short}</div>}
               </div>;
             })}
 
-            {/* Total hours cell */}
+            {/* Total hours */}
             <div style={{
-              padding:"6px 4px",textAlign:"center",borderLeft:`1px solid ${th.bd}`,
+              padding:"8px 4px",textAlign:"center",borderLeft:`1px solid ${th.bd}`,
               display:"flex",alignItems:"center",justifyContent:"center",
-              fontWeight:700,fontSize:12,
-              color:totalH>0?th.tx:th.t3,
+              fontWeight:800,fontSize:13,
+              color:totalH>0?th.ac:th.t3,
             }}>
               {totalH>0?formatHours(totalH)+"h":"–"}
             </div>
@@ -1263,13 +1247,13 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
         })}
       </div>)}
 
-      {/* Empty state */}
       {company.employees.length===0&&<div style={{
         padding:"40px 20px",textAlign:"center",color:th.t3,fontSize:13,
       }}>{t.noEmployees}</div>}
     </div>
   </div>;
 }
+
 
 // ─── WORKSPACE (ADMIN VIEW) ──────────────────────────────────
 function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme}){
