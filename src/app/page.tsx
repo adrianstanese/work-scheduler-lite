@@ -1026,7 +1026,7 @@ function Landing({onCreateCompany,onAccessCompany,onDeleteCompany,recentCompanie
 }
 
 // ─── CALENDAR COMPONENT ──────────────────────────────────────
-function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selectedLeave,onAssign,onRemove,onRemoveShift,onAssignLeave,onRemoveLeave,isAdmin,filterEmpId,th,t}){
+function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selectedLeave,onAssign,onRemove,onRemoveShift,onAssignLeave,onRemoveLeave,isAdmin,filterEmpId,th,t,viewMode="planned",workedData={},onConfirmWorked,onOpenTimeOverride,onConfirmAllPlanned}){
   const days=getDaysInMonth(year,month);
   const firstDay=getFirstDayOfMonth(year,month);
   const holidays=useMemo(()=>getHolidays(company.country,year),[company.country,year]);
@@ -1095,6 +1095,7 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
 
   const startPaint=(date,empId)=>{
     if(isDraggingShift.current)return;
+    if(viewMode==="worked")return;
     if(!isAdmin||!isEmpActiveOnDate(empId,date))return;
     if(!selectedShift&&!selectedLeave)return;
     if(selectedEmp&&selectedEmp!==empId)return;
@@ -1308,22 +1309,53 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
                   userSelect:"none",
                 }}>
                 {!empActive&&<div style={{fontSize:8,color:th.t3,textAlign:"center"}}>—</div>}
-                {/* Shift cards — Agendrix style */}
-                {shifts.map((sh,i)=><div key={sh.id+i}
-                  draggable={isAdmin}
-                  onDragStart={e=>onShiftDragStart(e,date,emp.id,sh.id)}
-                  onDragEnd={onShiftDragEnd}
-                  style={{
-                  padding:"3px 5px",borderRadius:4,
-                  background:sh.color+"12",
-                  borderLeft:`3px solid ${sh.color}`,
-                  fontSize:8,lineHeight:1.3,
-                  cursor:isAdmin?"grab":"default",
-                  userSelect:"none",
-                }}>
-                  <div style={{fontWeight:700,color:th.tx}}>{sh.start}-{sh.end}</div>
-                  <div style={{color:th.t3,fontSize:7,marginTop:1}}>{sh.name}</div>
-                </div>)}
+                {/* Shift cards — Planned or Worked view */}
+                {shifts.map((sh,i)=>{
+                  const workedEntry=(workedData[date]?.[emp.id]||[]).find(w=>w.shiftId===sh.id);
+                  const isConfirmed=!!workedEntry;
+                  const displayStart=workedEntry?.startOverride||sh.start;
+                  const displayEnd=workedEntry?.endOverride||sh.end;
+                  const hasOverride=workedEntry&&(workedEntry.startOverride!==sh.start||workedEntry.endOverride!==sh.end);
+
+                  if(viewMode==="worked"){
+                    return <div key={sh.id+i} style={{
+                      padding:"3px 5px",borderRadius:4,
+                      background:isConfirmed?"#05966915":th.t3+"08",
+                      borderLeft:`3px solid ${isConfirmed?"#059669":th.t3+"40"}`,
+                      fontSize:8,lineHeight:1.3,opacity:isConfirmed?1:0.5,
+                      display:"flex",alignItems:"flex-start",gap:3,
+                    }}>
+                      {isAdmin&&<input type="checkbox" checked={isConfirmed}
+                        onChange={()=>onConfirmWorked(date,emp.id,sh.id)}
+                        style={{margin:"1px 0 0",cursor:"pointer",accentColor:"#059669",width:12,height:12,flexShrink:0}}
+                        onClick={e=>e.stopPropagation()}/>}
+                      <div style={{flex:1,minWidth:0,cursor:isConfirmed&&isAdmin?"pointer":"default"}}
+                        onClick={e=>{e.stopPropagation();if(isConfirmed&&isAdmin)onOpenTimeOverride(date,emp.id,sh.id);}}>
+                        <div style={{fontWeight:700,color:isConfirmed?th.tx:th.t3}}>
+                          {displayStart}-{displayEnd}
+                          {hasOverride&&<span style={{color:"#059669",fontSize:6,marginLeft:2}}>*</span>}
+                        </div>
+                        <div style={{color:th.t3,fontSize:7,marginTop:1}}>{sh.name}</div>
+                      </div>
+                    </div>;
+                  }
+                  // Planned view — original Agendrix style
+                  return <div key={sh.id+i}
+                    draggable={isAdmin&&viewMode==="planned"}
+                    onDragStart={e=>onShiftDragStart(e,date,emp.id,sh.id)}
+                    onDragEnd={onShiftDragEnd}
+                    style={{
+                    padding:"3px 5px",borderRadius:4,
+                    background:sh.color+"12",
+                    borderLeft:`3px solid ${sh.color}`,
+                    fontSize:8,lineHeight:1.3,
+                    cursor:isAdmin?"grab":"default",
+                    userSelect:"none",
+                  }}>
+                    <div style={{fontWeight:700,color:th.tx}}>{sh.start}-{sh.end}</div>
+                    <div style={{color:th.t3,fontSize:7,marginTop:1}}>{sh.name}</div>
+                  </div>;
+                })}
                 {/* Leave badge */}
                 {leave&&<div
                   draggable={isAdmin}
@@ -1370,6 +1402,10 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
   const [showShare,setShowShare]=useState(false);
   const [showAdminSettings,setShowAdminSettings]=useState(false);
   const [showLeaveLegend,setShowLeaveLegend]=useState(false);
+  const [viewMode,setViewMode]=useState("planned"); // "planned" | "worked"
+  const [showTimeOverride,setShowTimeOverride]=useState(null); // {date,empId,shiftId,start,end}
+  const [overrideStart,setOverrideStart]=useState("");
+  const [overrideEnd,setOverrideEnd]=useState("");
   const [shiftsOpen,setShiftsOpen]=useState(true);
   const [leavesOpen,setLeavesOpen]=useState(true);
   const [otherLeavesOpen,setOtherLeavesOpen]=useState(false);
@@ -1464,6 +1500,98 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
       onUpdate({...company,assignments:a});
     }
   };
+
+  // ── Worked Assignments CRUD ──
+  const workedData=company.workedAssignments||{};
+
+  const confirmWorked=(date,empId,shiftId)=>{
+    const w=JSON.parse(JSON.stringify(workedData));
+    if(!w[date])w[date]={};
+    if(!w[date][empId])w[date][empId]=[];
+    const existing=w[date][empId].find(e=>e.shiftId===shiftId);
+    if(existing){
+      // Toggle off — unconfirm
+      w[date][empId]=w[date][empId].filter(e=>e.shiftId!==shiftId);
+      if(w[date][empId].length===0)delete w[date][empId];
+      if(Object.keys(w[date]).length===0)delete w[date];
+    } else {
+      // Confirm with default shift times
+      const sh=company.shifts.find(s=>s.id===shiftId);
+      w[date][empId].push({shiftId,confirmed:true,startOverride:sh?.start||null,endOverride:sh?.end||null});
+    }
+    onUpdate({...company,workedAssignments:w});
+  };
+
+  const openTimeOverrideModal=(date,empId,shiftId)=>{
+    const w=workedData[date]?.[empId]?.find(e=>e.shiftId===shiftId);
+    const sh=company.shifts.find(s=>s.id===shiftId);
+    setOverrideStart(w?.startOverride||sh?.start||"09:00");
+    setOverrideEnd(w?.endOverride||sh?.end||"17:00");
+    setShowTimeOverride({date,empId,shiftId});
+  };
+
+  const saveTimeOverride=()=>{
+    if(!showTimeOverride)return;
+    const {date,empId,shiftId}=showTimeOverride;
+    const w=JSON.parse(JSON.stringify(workedData));
+    if(!w[date])w[date]={};
+    if(!w[date][empId])w[date][empId]=[];
+    const idx=w[date][empId].findIndex(e=>e.shiftId===shiftId);
+    if(idx>=0){
+      w[date][empId][idx].startOverride=overrideStart;
+      w[date][empId][idx].endOverride=overrideEnd;
+    } else {
+      w[date][empId].push({shiftId,confirmed:true,startOverride:overrideStart,endOverride:overrideEnd});
+    }
+    onUpdate({...company,workedAssignments:w});
+    setShowTimeOverride(null);
+    showToast(lang==="ro"?"Ore actualizate":"Hours updated");
+  };
+
+  const confirmAllPlanned=(date,empId)=>{
+    const dayA=company.assignments[date]||{};
+    const raw=dayA[empId];
+    if(!raw)return;
+    const ids=Array.isArray(raw)?raw:[raw];
+    const w=JSON.parse(JSON.stringify(workedData));
+    if(!w[date])w[date]={};
+    if(!w[date][empId])w[date][empId]=[];
+    ids.forEach(shiftId=>{
+      if(!w[date][empId].find(e=>e.shiftId===shiftId)){
+        const sh=company.shifts.find(s=>s.id===shiftId);
+        w[date][empId].push({shiftId,confirmed:true,startOverride:sh?.start||null,endOverride:sh?.end||null});
+      }
+    });
+    onUpdate({...company,workedAssignments:w});
+  };
+
+  // ── Worked hours calculation (mirrors empMonthHoursDetail but from workedAssignments) ──
+  const empWorkedHoursDetail=useMemo(()=>{
+    const result={};
+    company.employees.forEach(emp=>{
+      let normalH=0,holidayH=0;
+      Object.entries(workedData).forEach(([date,dayW])=>{
+        if(dayW[emp.id]){
+          const [y,m]=date.split("-").map(Number);
+          if(y===curYear&&m-1===curMonth){
+            const isHol=!!holidays[date];
+            dayW[emp.id].forEach(({shiftId,startOverride,endOverride})=>{
+              const h=startOverride&&endOverride?shiftDuration(startOverride,endOverride):0;
+              if(isHol) holidayH+=h; else normalH+=h;
+            });
+          }
+        }
+      });
+      const contracted=empContractedHours[emp.id]||0;
+      const overtime=Math.max(0,normalH-contracted);
+      const normalCapped=Math.min(normalH,contracted);
+      result[emp.id]={normal:normalCapped,overtime,holiday:holidayH,total:normalH+holidayH};
+    });
+    return result;
+  },[company,workedData,curMonth,curYear,holidays,empContractedHours]);
+
+  // ── Active hours detail based on viewMode ──
+  const activeHoursDetail=viewMode==="worked"?empWorkedHoursDetail:empMonthHoursDetail;
 
   const addEmployee=()=>{
     if(!newEmpName.trim())return;
@@ -1727,6 +1855,19 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
         <span style={{fontSize:15,fontWeight:800,color:th.tx,letterSpacing:"-0.02em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
           {COUNTRIES.find(c=>c.code===company.country)?.flag} {company.name}
         </span>
+        {/* ── Planned / Worked Toggle ── */}
+        <div style={{display:"inline-flex",borderRadius:10,overflow:"hidden",border:`1.5px solid ${th.bd}`,marginLeft:8,flexShrink:0}}>
+          <button onClick={()=>setViewMode("planned")} style={{
+            padding:"5px 12px",border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:F,
+            background:viewMode==="planned"?th.ac:"transparent",color:viewMode==="planned"?"#fff":th.t3,
+            transition:"all 0.15s",display:"flex",alignItems:"center",gap:4,
+          }}>📋 {lang==="ro"?"Planificat":"Planned"}</button>
+          <button onClick={()=>setViewMode("worked")} style={{
+            padding:"5px 12px",border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:F,
+            background:viewMode==="worked"?"#059669":"transparent",color:viewMode==="worked"?"#fff":th.t3,
+            transition:"all 0.15s",display:"flex",alignItems:"center",gap:4,
+          }}>✅ {lang==="ro"?"Lucrat":"Worked"}</button>
+        </div>
       </div>
       {/* Dock-style action pills */}
       <div style={{display:"inline-flex",gap:3,padding:"4px 6px",borderRadius:14,
@@ -1794,7 +1935,7 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
                 {emps.map(emp=>{
                   const isSelected=selEmp===emp.id;
                   const isTerm=emp.status==="terminated";
-                  const d=empMonthHoursDetail[emp.id]||{normal:0,overtime:0,holiday:0,total:0};
+                  const d=activeHoursDetail[emp.id]||{normal:0,overtime:0,holiday:0,total:0};
                   const ct=empContractedHours[emp.id]||0;
                   return <div key={emp.id}
                     onClick={()=>{setSelEmp(isSelected?null:emp.id);if(!isSelected){setSelShift(null);setSelLeave(null);}}}
@@ -2164,14 +2305,15 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
             onAssign={assign} onRemove={removeAllFromDay} onRemoveShift={removeShiftFromDay}
             onAssignLeave={assignLeave} onRemoveLeave={removeLeaveFromDay}
             isAdmin={true} filterEmpId={null} th={th} t={t}
+            viewMode={viewMode} workedData={workedData} onConfirmWorked={confirmWorked} onOpenTimeOverride={openTimeOverrideModal} onConfirmAllPlanned={confirmAllPlanned}
           />
 
           {/* ── Embedded KPI Glass Bar with animated counters + thresholds ── */}
           {company.employees.length>0&&(()=>{
-            const totalWorked=Object.values(empMonthHoursDetail).reduce((s,d)=>s+d.total,0);
+            const totalWorked=Object.values(activeHoursDetail).reduce((s,d)=>s+d.total,0);
             const totalContracted=Object.values(empContractedHours).reduce((s,v)=>s+v,0);
-            const totalOT=Object.values(empMonthHoursDetail).reduce((s,d)=>s+d.overtime,0);
-            const totalHol=Object.values(empMonthHoursDetail).reduce((s,d)=>s+d.holiday,0);
+            const totalOT=Object.values(activeHoursDetail).reduce((s,d)=>s+d.overtime,0);
+            const totalHol=Object.values(activeHoursDetail).reduce((s,d)=>s+d.holiday,0);
             const util=totalContracted>0?Math.round(totalWorked/totalContracted*100):0;
             const kpis=[
               {v:`${util}%`,l:lang==="ro"?"Utilizare":"Utilization",c:util>100?th.warn:util>=90?th.ok:util>=70?th.warn:th.er,anchor:"dashboard-section"},
@@ -2315,7 +2457,7 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
             if(maxCW>14) warnings.push({type:"consec14",severity:"high",msg:lang==="ro"?`${maxCW} zile consecutive (max 14, Art. 137)`:`${maxCW} consecutive days (max 14, Art. 137)`});
             const holDays=workDays.filter(d=>d.isHol&&d.worked);
             if(holDays.length>0) warnings.push({type:"holiday",severity:"info",msg:lang==="ro"?`${holDays.length} zile sărbători lucrate (spor ≥100%)`:`${holDays.length} holiday days worked (≥100% premium)`});
-            const detail=empMonthHoursDetail[emp.id]||{normal:0,overtime:0,holiday:0,total:0};
+            const detail=activeHoursDetail[emp.id]||{normal:0,overtime:0,holiday:0,total:0};
             const contracted=empContractedHours[emp.id]||0;
             const leaveDays=workDays.filter(d=>d.hasLeave).length;
             const absentDays=workDays.filter(d=>{const isOp=od[dayKeys[d.dow]]?.active;return isOp&&!d.worked&&!d.hasLeave&&!d.isHol;}).length;
@@ -2679,6 +2821,43 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
       </div>
     </Modal>
 
+    {/* TIME OVERRIDE MODAL */}
+    <Modal open={!!showTimeOverride} onClose={()=>setShowTimeOverride(null)}
+      title={lang==="ro"?"Editare ore lucrate":"Edit worked hours"} th={th}>
+      {showTimeOverride&&(()=>{
+        const sh=company.shifts.find(s=>s.id===showTimeOverride.shiftId);
+        const emp=company.employees.find(e=>e.id===showTimeOverride.empId);
+        return <div style={{display:"flex",flexDirection:"column",gap:14}}>
+          <div style={{padding:"8px 12px",borderRadius:G.rXs,background:th.gbg,border:`1px solid ${th.gbd}`}}>
+            <div style={{fontSize:12,fontWeight:700,color:th.tx}}>{emp?.name} — {sh?.name}</div>
+            <div style={{fontSize:11,color:th.t3,marginTop:2}}>{showTimeOverride.date} · {lang==="ro"?"Planificat":"Planned"}: {sh?.start}-{sh?.end}</div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <div>
+              <label style={{fontSize:12,fontWeight:700,color:th.t2,display:"block",marginBottom:6}}>{lang==="ro"?"Ora start efectivă":"Actual start time"}</label>
+              <GInput th={th} type="time" value={overrideStart} onChange={e=>setOverrideStart(e.target.value)}/>
+            </div>
+            <div>
+              <label style={{fontSize:12,fontWeight:700,color:th.t2,display:"block",marginBottom:6}}>{lang==="ro"?"Ora sfârșit efectivă":"Actual end time"}</label>
+              <GInput th={th} type="time" value={overrideEnd} onChange={e=>setOverrideEnd(e.target.value)}/>
+            </div>
+          </div>
+          {overrideStart&&overrideEnd&&<div style={{padding:"8px 12px",borderRadius:G.rXs,background:th.okBg}}>
+            <span style={{fontSize:12,fontWeight:700,color:th.ok}}>
+              {formatHours(shiftDuration(overrideStart,overrideEnd))}h {lang==="ro"?"lucrate efectiv":"actually worked"}
+              {sh&&shiftDuration(overrideStart,overrideEnd)!==shiftDuration(sh.start,sh.end)&&
+                <span style={{color:shiftDuration(overrideStart,overrideEnd)>shiftDuration(sh.start,sh.end)?th.warn:th.er}}>
+                  {" "}({shiftDuration(overrideStart,overrideEnd)>shiftDuration(sh.start,sh.end)?"+":""}{formatHours(shiftDuration(overrideStart,overrideEnd)-shiftDuration(sh.start,sh.end))}h {lang==="ro"?"vs planificat":"vs planned"})
+                </span>}
+            </span>
+          </div>}
+          <GBtn primary th={th} onClick={saveTimeOverride}>
+            <Icons.Check s={14} c="#fff"/> {t.save}
+          </GBtn>
+        </div>;
+      })()}
+    </Modal>
+
     {/* ADMIN SETTINGS MODAL */}
     <Modal open={showAdminSettings} onClose={()=>setShowAdminSettings(false)} title={t.adminSettings} th={th} wide>
       <div style={{display:"flex",flexDirection:"column",gap:16}}>
@@ -2764,6 +2943,7 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
 
 // ─── MEMBER VIEW (READ-ONLY) ─────────────────────────────────
 function MemberView({company,empId,th,t,lang,setLang,theme,setTheme}){
+  const [memberViewMode,setMemberViewMode]=useState("planned");
   const emp=company.employees.find(e=>e.id===empId);
   const [curMonth,setCurMonth]=useState(new Date().getMonth());
   const [curYear,setCurYear]=useState(new Date().getFullYear());
@@ -2846,6 +3026,7 @@ function MemberView({company,empId,th,t,lang,setLang,theme,setTheme}){
         company={company} month={curMonth} year={curYear}
         selectedShift={null} selectedEmp={empId} selectedLeave={null}
         onAssign={()=>{}} onRemove={()=>{}} onRemoveShift={()=>{}} onAssignLeave={()=>{}} onRemoveLeave={()=>{}}
+        viewMode={memberViewMode||"planned"} workedData={company.workedAssignments||{}} onConfirmWorked={()=>{}} onOpenTimeOverride={()=>{}} onConfirmAllPlanned={()=>{}}
         isAdmin={false} filterEmpId={empId} th={th} t={t}
       />
 
