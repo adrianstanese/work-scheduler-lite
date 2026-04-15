@@ -1035,7 +1035,7 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
   const dayKeys=["mon","tue","wed","thu","fri","sat","sun"];
   const opDays=company.opDays||{
     mon:{active:true},tue:{active:true},wed:{active:true},thu:{active:true},fri:{active:true},
-    sat:{active:company.schedType==="allWeek"},sun:{active:company.schedType==="allWeek"},
+    sat:{active:false},sun:{active:false},
   };
   const dayNamesShort=[t.mon,t.tue,t.wed,t.thu,t.fri,t.sat,t.sun];
   const monthNames=[t.jan,t.feb,t.mar,t.apr,t.may,t.jun,t.jul,t.aug,t.sep,t.oct,t.nov,t.dec];
@@ -1113,9 +1113,6 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
   const gridCols=`160px repeat(${days},${colW}) 60px`;
 
   return <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
-    <h3 style={{fontSize:18,fontWeight:800,color:th.tx,textAlign:"center",marginBottom:12}}>
-      {monthNames[month]} {year}
-    </h3>
     <div style={{minWidth:days*38+220}}>
       {/* ── HEADER ROW: day numbers + day names ── */}
       <div style={{display:"grid",gridTemplateColumns:gridCols,gap:0,
@@ -1533,20 +1530,24 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
   },[selEmp,company.assignments,company.shifts]);
 
 
-  // Contracted hours per employee for current month (working days * hours/day)
+  // Contracted hours per employee for current month
+  // Romanian labour law: always based on LEGAL working days (Mon-Fri, excluding public holidays)
+  // regardless of company operating days — Art. 112 Codul Muncii
   const empContractedHours=useMemo(()=>{
-    const dayKeys=["mon","tue","wed","thu","fri","sat","sun"];
-    const od=company.opDays||{mon:{active:true},tue:{active:true},wed:{active:true},thu:{active:true},fri:{active:true},sat:{active:false},sun:{active:false}};
+    const hols=getHolidays(company.country,curYear);
     const result={};
     company.employees.forEach(emp=>{
       const hpd=emp.hoursPerDay||8;
-      let workingDays=0;
+      let legalWorkingDays=0;
       const daysInM=getDaysInMonth(curYear,curMonth);
       for(let d=1;d<=daysInM;d++){
         const dow=(getFirstDayOfMonth(curYear,curMonth)+d-1)%7;
-        if(od[dayKeys[dow]]?.active) workingDays++;
+        const isWeekday=dow>=0&&dow<=4; // Mon=0..Fri=4
+        const date=`${curYear}-${pad2(curMonth+1)}-${pad2(d)}`;
+        const isHoliday=!!hols[date];
+        if(isWeekday&&!isHoliday) legalWorkingDays++;
       }
-      result[emp.id]=workingDays*hpd;
+      result[emp.id]=legalWorkingDays*hpd;
     });
     return result;
   },[company,curMonth,curYear]);
