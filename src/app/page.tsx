@@ -1854,105 +1854,133 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
   // ── Professional Report HTML Generator ──
   const generateReportHTML=(mode)=>{
     const mn=[t.jan,t.feb,t.mar,t.apr,t.may,t.jun,t.jul,t.aug,t.sep,t.oct,t.nov,t.dec];
-    const dn=lang==="ro"?["L","Ma","Mi","J","V","S","D"]:["M","Tu","W","Th","F","Sa","Su"];
-    const dnFull=lang==="ro"?["Luni","Marți","Miercuri","Joi","Vineri","Sâmbătă","Duminică"]:["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+    const dn=lang==="ro"?["Lun","Mar","Mie","Joi","Vin","Sâm","Dum"]:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
     const days=getDaysInMonth(curYear,curMonth);
     const hols=getHolidays(company.country,curYear);
     const activeEmps=company.employees.filter(e=>e.status!=="terminated");
-    const isPrint=mode==="print";
+    const firstDow=getFirstDayOfMonth(curYear,curMonth);
+
+    // Build weeks: split days into Mon-Sun rows
+    const weeks=[];
+    let week=[];
+    // Pad the first week with nulls for days before the 1st
+    for(let i=0;i<firstDow;i++) week.push(null);
+    for(let d=1;d<=days;d++){
+      const dow=(firstDow+d-1)%7;
+      const date=`${curYear}-${pad2(curMonth+1)}-${pad2(d)}`;
+      week.push({d,dow,date,hol:hols[date]||null,isWe:dow>=5});
+      if(dow===6||d===days){
+        while(week.length<7) week.push(null);
+        weeks.push(week);
+        week=[];
+      }
+    }
 
     const css=`
-      @page{size:A4 landscape;margin:10mm 8mm}
+      @page{size:A4 portrait;margin:12mm 10mm}
       *{margin:0;padding:0;box-sizing:border-box}
-      body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:#1a1a2e;background:#fff;padding:${isPrint?"0":"20px 24px"};font-size:8px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-      .header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #3b6de6;padding-bottom:8px;margin-bottom:12px}
-      .company{font-size:16px;font-weight:800;color:#1a1a2e;letter-spacing:-0.02em}
-      .period{font-size:11px;color:#3b6de6;font-weight:700;margin-top:2px}
+      body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:#1a1a2e;background:#fff;padding:16px 20px;font-size:9px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #3b6de6;padding-bottom:8px;margin-bottom:14px}
+      .company{font-size:18px;font-weight:800;color:#1a1a2e;letter-spacing:-0.02em}
+      .period{font-size:12px;color:#3b6de6;font-weight:700;margin-top:2px}
       .meta{text-align:right;font-size:8px;color:#8892ab;line-height:1.5}
-      .badge{display:inline-block;padding:1px 4px;border-radius:3px;font-size:7px;font-weight:700;white-space:nowrap}
-      table{width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:12px}
-      th,td{border:1px solid #e2e5ea;padding:3px 2px;text-align:center;vertical-align:middle;overflow:hidden}
-      th{background:#f0f4fa;font-weight:700;font-size:7px;color:#4a5578}
-      .emp-cell{text-align:left;padding:4px 6px;font-weight:700;font-size:8px;white-space:nowrap;background:#fafbfc;width:90px;min-width:90px;max-width:90px}
-      .emp-role{font-size:6px;color:#8892ab;font-weight:500;display:block;margin-top:1px}
-      .total-cell{font-weight:800;font-size:9px;background:#f0f4fa;width:36px}
-      .role-row td{background:#eef2ff;color:#3b6de6;font-weight:800;font-size:8px;text-align:left;padding:4px 6px;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #3b6de6}
-      .weekend{background:#f8f9fb}
-      .holiday{background:#fef2f2}
-      .today-col{background:#eff6ff}
-      .shift-badge{display:block;padding:1px 2px;border-radius:2px;color:#fff;font-size:6px;font-weight:700;margin:1px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-      .leave-badge{display:block;font-style:italic;font-size:6px;font-weight:700;padding:1px 2px;border-radius:2px;margin:1px 0}
-      .summary{display:flex;gap:16px;margin-top:8px;padding:8px 12px;background:#f8f9fb;border-radius:6px;border:1px solid #e2e5ea}
-      .kpi{text-align:center;flex:1}
-      .kpi-val{font-size:14px;font-weight:800;line-height:1}
-      .kpi-label{font-size:7px;color:#8892ab;margin-top:2px}
+      .week-section{margin-bottom:14px;page-break-inside:avoid}
+      .week-label{font-size:9px;font-weight:700;color:#3b6de6;margin-bottom:4px;padding:3px 8px;background:#eef2ff;border-radius:4px;display:inline-block}
+      table{width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:2px}
+      th,td{border:1px solid #e2e5ea;padding:5px 4px;text-align:center;vertical-align:top}
+      th{background:#f0f4fa;font-weight:700;font-size:8px;color:#4a5578}
+      .day-header{font-size:10px;font-weight:700;display:block}
+      .day-name{font-size:7px;color:#8892ab;display:block}
+      .emp-cell{text-align:left;padding:5px 8px;font-weight:700;font-size:9px;white-space:nowrap;background:#fafbfc;width:120px}
+      .emp-role{font-size:7px;color:#8892ab;font-weight:500;display:block;margin-top:1px}
+      .total-cell{font-weight:800;font-size:10px;background:#f0f4fa;color:#3b6de6;width:48px;text-align:center}
+      .role-row td{background:#eef2ff;color:#3b6de6;font-weight:800;font-size:9px;text-align:left;padding:4px 8px;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #c7d2fe}
+      .we{background:#f8f9fb}
+      .hol{background:#fef2f2}
+      .empty{background:#fafbfc;color:#d1d5db}
+      .shift-card{display:block;padding:2px 4px;border-radius:3px;color:#fff;font-size:8px;font-weight:700;margin:1px 0;line-height:1.3}
+      .shift-time{display:block;font-size:7px;font-weight:500;opacity:0.9}
+      .leave-card{display:block;padding:2px 4px;border-radius:3px;font-size:8px;font-weight:700;margin:1px 0;font-style:italic}
+      .summary{display:flex;gap:12px;margin:16px 0;padding:10px 14px;background:#f8f9fb;border-radius:8px;border:1px solid #e2e5ea}
+      .kpi{text-align:center;flex:1;border-right:1px solid #e2e5ea;padding-right:12px}
+      .kpi:last-child{border-right:none;padding-right:0}
+      .kpi-val{font-size:16px;font-weight:800;line-height:1.2}
+      .kpi-label{font-size:7px;color:#8892ab;margin-top:2px;font-weight:600}
+      .comp-table{margin-top:10px}
+      .comp-table th{font-size:8px;padding:5px 8px}
+      .comp-table td{font-size:9px;padding:5px 8px}
+      .ok{color:#059669;font-weight:700}
+      .warn{color:#f59e0b;font-weight:700}
+      .err{color:#dc2626;font-weight:700}
+      .legend{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}
+      .legend span{display:flex;align-items:center;gap:3px;font-size:8px;color:#4a5578}
+      .legend i{width:10px;height:10px;border-radius:2px;display:inline-block;flex-shrink:0}
       .footer{margin-top:16px;padding-top:8px;border-top:1px solid #e2e5ea;display:flex;justify-content:space-between;font-size:7px;color:#8892ab}
-      .legend{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
-      .legend-item{display:flex;align-items:center;gap:3px;font-size:7px;color:#4a5578}
-      .legend-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
-      .compliance-table{margin-top:12px}
-      .compliance-table th{font-size:7px}
-      .compliance-table td{font-size:8px;padding:4px 6px}
-      .status-ok{color:#059669;font-weight:700;font-size:7px}
-      .status-warn{color:#f59e0b;font-weight:700;font-size:7px}
-      .status-err{color:#dc2626;font-weight:700;font-size:7px}
-      @media print{.no-print{display:none}}
     `;
 
     let html="<!DOCTYPE html><html lang='"+lang+"'><head><meta charset='UTF-8'/><title>"+company.name+" — "+mn[curMonth]+" "+curYear+"</title><style>"+css+"</style></head><body>";
 
     // Header
-    html+="<div class='header'>";
-    html+="<div><div class='company'>"+company.name+"</div>";
+    html+="<div class='header'><div><div class='company'>"+company.name+"</div>";
     html+="<div class='period'>"+mn[curMonth]+" "+curYear+"</div></div>";
-    html+="<div class='meta'>"+(lang==="ro"?"Program de lucru":"Work Schedule")+"<br/>"+(lang==="ro"?"Generat":"Generated")+": "+new Date().toLocaleDateString(lang==="ro"?"ro-RO":"en-GB")+"</div>";
-    html+="</div>";
+    html+="<div class='meta'>"+(lang==="ro"?"Program de lucru":"Work Schedule")+"<br/>"+(lang==="ro"?"Generat":"Generated")+": "+new Date().toLocaleDateString(lang==="ro"?"ro-RO":"en-GB")+"</div></div>";
 
-    // Schedule grid
-    html+="<table><thead><tr><th class='emp-cell'>"+(lang==="ro"?"Angajat":"Employee")+"</th>";
-    for(let d=1;d<=days;d++){
-      const dow=(getFirstDayOfMonth(curYear,curMonth)+d-1)%7;
-      const date=curYear+"-"+pad2(curMonth+1)+"-"+pad2(d);
-      const isWe=dow>=5;const isHol=!!hols[date];
-      const cls=isHol?"holiday":(isWe?"weekend":"");
-      html+="<th class='"+cls+"'><span style='display:block;font-size:6px;color:#8892ab'>"+dn[dow]+"</span>"+d+(isHol?"<br/><span style='font-size:5px;color:#dc2626'>"+hols[date].substring(0,6)+"</span>":"")+"</th>";
-    }
-    html+="<th class='total-cell'>Total</th></tr></thead><tbody>";
-
-    // Group by role
+    // Group employees by role
     const sorted=[...activeEmps].sort((a,b)=>(a.role||"zzz").toUpperCase().localeCompare((b.role||"zzz").toUpperCase()));
     const groups={};sorted.forEach(emp=>{const r=(emp.role||"GENERAL").toUpperCase();if(!groups[r])groups[r]=[];groups[r].push(emp)});
+    const multiRole=Object.keys(groups).length>1;
 
-    Object.entries(groups).forEach(([role,emps])=>{
-      if(Object.keys(groups).length>1){
-        html+="<tr class='role-row'><td colspan='"+(days+2)+"'>"+role+"</td></tr>";
-      }
-      emps.forEach(emp=>{
-        html+="<tr><td class='emp-cell'>"+emp.name+(emp.role?"<span class='emp-role'>"+emp.role+"</span>":"")+"</td>";
-        let totalH=0;
-        for(let d=1;d<=days;d++){
-          const date=curYear+"-"+pad2(curMonth+1)+"-"+pad2(d);
-          const dow=(getFirstDayOfMonth(curYear,curMonth)+d-1)%7;
-          const dayA=company.assignments[date]||{};
-          const raw=dayA[emp.id];const ids=raw?(Array.isArray(raw)?raw:[raw]):[];
-          const la=(company.leaveAssignments||{})[date]||{};const lvId=la[emp.id];
-          const isWe=dow>=5;const isHol=!!hols[date];
-          const cls=isHol?"holiday":(isWe?"weekend":"");
-          let cell="";
-          ids.forEach(sid=>{const sh=company.shifts.find(s=>s.id===sid);if(sh){cell+="<span class='shift-badge' style='background:"+sh.color+"'>"+sh.start.replace(":00","")+"–"+sh.end.replace(":00","")+"</span>";totalH+=shiftDuration(sh.start,sh.end);}});
-          if(lvId){const lv=(company.leaves||[]).find(l=>l.id===lvId);if(lv)cell+="<span class='leave-badge' style='color:"+lv.color+";background:"+lv.color+"15'>"+lv.short+"</span>";}
-          html+="<td class='"+cls+"'>"+cell+"</td>";
-        }
-        html+="<td class='total-cell' style='color:#3b6de6'>"+formatHours(totalH)+"h</td></tr>";
+    // Weekly tables
+    weeks.forEach((wk,wi)=>{
+      const firstDay=wk.find(d=>d!==null);
+      const lastDay=[...wk].reverse().find(d=>d!==null);
+      if(!firstDay)return;
+      const weekLabel=(lang==="ro"?"Săptămâna":"Week")+" "+(wi+1)+" ("+firstDay.d+"–"+(lastDay?.d||firstDay.d)+" "+mn[curMonth]+")";
+
+      html+="<div class='week-section'>";
+      html+="<div class='week-label'>"+weekLabel+"</div>";
+      html+="<table><thead><tr><th class='emp-cell'>"+(lang==="ro"?"Angajat":"Employee")+"</th>";
+      wk.forEach(day=>{
+        if(!day){html+="<th class='empty'></th>";return;}
+        const cls=day.hol?"hol":(day.isWe?"we":"");
+        html+="<th class='"+cls+"'><span class='day-name'>"+dn[day.dow]+"</span><span class='day-header'>"+day.d+"</span>";
+        if(day.hol) html+="<br/><span style='font-size:6px;color:#dc2626'>"+day.hol.substring(0,8)+"</span>";
+        html+="</th>";
       });
+      html+="<th class='total-cell'>"+(lang==="ro"?"Ore":"Hrs")+"</th></tr></thead><tbody>";
+
+      Object.entries(groups).forEach(([role,emps])=>{
+        if(multiRole){
+          html+="<tr class='role-row'><td colspan='9'>"+role+"</td></tr>";
+        }
+        emps.forEach(emp=>{
+          html+="<tr><td class='emp-cell'>"+emp.name+(emp.role?"<span class='emp-role'>"+emp.role+"</span>":"")+"</td>";
+          let weekH=0;
+          wk.forEach(day=>{
+            if(!day){html+="<td class='empty'>–</td>";return;}
+            const cls=day.hol?"hol":(day.isWe?"we":"");
+            const dayA=company.assignments[day.date]||{};
+            const raw=dayA[emp.id];const ids=raw?(Array.isArray(raw)?raw:[raw]):[];
+            const la=(company.leaveAssignments||{})[day.date]||{};const lvId=la[emp.id];
+            let cell="";
+            ids.forEach(sid=>{const sh=company.shifts.find(s=>s.id===sid);if(sh){
+              cell+="<span class='shift-card' style='background:"+sh.color+"'>"+sh.name+"<span class='shift-time'>"+sh.start+"–"+sh.end+"</span></span>";
+              weekH+=shiftDuration(sh.start,sh.end);
+            }});
+            if(lvId){const lv=(company.leaves||[]).find(l=>l.id===lvId);if(lv)cell+="<span class='leave-card' style='color:"+lv.color+";background:"+lv.color+"18;border:1px solid "+lv.color+"30'>"+lv.short+"</span>";}
+            html+="<td class='"+cls+"'>"+cell+"</td>";
+          });
+          html+="<td class='total-cell'>"+formatHours(weekH)+"h</td></tr>";
+        });
+      });
+      html+="</tbody></table></div>";
     });
-    html+="</tbody></table>";
 
     // Legend
     html+="<div class='legend'>";
-    company.shifts.forEach(s=>{html+="<span class='legend-item'><span class='legend-dot' style='background:"+s.color+"'></span>"+s.name+" ("+s.start+"–"+s.end+")</span>";});
+    company.shifts.forEach(s=>{html+="<span><i style='background:"+s.color+"'></i>"+s.name+" ("+s.start+"–"+s.end+")</span>";});
     (company.leaves||[]).filter(l=>["CO","CM"].includes(l.short)).forEach(lv=>{
-      html+="<span class='legend-item'><span class='legend-dot' style='background:"+lv.color+"'></span>"+lv.short+" – "+lv.name+"</span>";
+      html+="<span><i style='background:"+lv.color+"'></i>"+lv.short+" – "+lv.name+"</span>";
     });
     html+="</div>";
 
@@ -1965,33 +1993,31 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
 
     html+="<div class='summary'>";
     html+="<div class='kpi'><div class='kpi-val' style='color:"+(util>100?"#f59e0b":util>=90?"#059669":"#dc2626")+"'>"+util+"%</div><div class='kpi-label'>"+(lang==="ro"?"Utilizare":"Utilization")+"</div></div>";
-    html+="<div class='kpi'><div class='kpi-val' style='color:"+(totalOT>0?"#f59e0b":"#059669")+"'>"+formatHours(totalOT)+"h</div><div class='kpi-label'>"+(lang==="ro"?"Ore Suplimentare":"Overtime")+"</div></div>";
-    html+="<div class='kpi'><div class='kpi-val' style='color:#7c3aed'>"+formatHours(totalHol)+"h</div><div class='kpi-label'>"+(lang==="ro"?"Ore Sărbători":"Holiday Hours")+"</div></div>";
-    html+="<div class='kpi'><div class='kpi-val' style='color:#3b6de6'>"+activeEmps.length+"</div><div class='kpi-label'>"+(lang==="ro"?"Angajați Activi":"Active Employees")+"</div></div>";
-    html+="<div class='kpi'><div class='kpi-val' style='color:#1a1a2e'>"+formatHours(totalWorked)+"h</div><div class='kpi-label'>"+(lang==="ro"?"Total Ore":"Total Hours")+"</div></div>";
+    html+="<div class='kpi'><div class='kpi-val' style='color:"+(totalOT>0?"#f59e0b":"#059669")+"'>"+formatHours(totalOT)+"h</div><div class='kpi-label'>OT</div></div>";
+    html+="<div class='kpi'><div class='kpi-val' style='color:#7c3aed'>"+formatHours(totalHol)+"h</div><div class='kpi-label'>"+(lang==="ro"?"Sărbători":"Holidays")+"</div></div>";
+    html+="<div class='kpi'><div class='kpi-val' style='color:#3b6de6'>"+activeEmps.length+"</div><div class='kpi-label'>"+(lang==="ro"?"Angajați":"Employees")+"</div></div>";
+    html+="<div class='kpi'><div class='kpi-val'>"+formatHours(totalWorked)+"h</div><div class='kpi-label'>Total</div></div>";
     html+="</div>";
 
-    // Compliance mini-table
-    html+="<table class='compliance-table' style='margin-top:10px'><thead><tr><th style='text-align:left'>"+(lang==="ro"?"Angajat":"Employee")+"</th><th>"+(lang==="ro"?"Contractat":"Contracted")+"</th><th>"+(lang==="ro"?"Lucrat":"Worked")+"</th><th>OT</th><th>"+(lang==="ro"?"Sărbători":"Holidays")+"</th><th>Status</th></tr></thead><tbody>";
+    // Compliance table
+    html+="<table class='comp-table'><thead><tr><th style='text-align:left'>"+(lang==="ro"?"Angajat":"Employee")+"</th><th>"+(lang==="ro"?"Contract":"Contract")+"</th><th>"+(lang==="ro"?"Lucrat":"Worked")+"</th><th>OT</th><th>"+(lang==="ro"?"Sărbători":"Holidays")+"</th><th>Status</th></tr></thead><tbody>";
     activeEmps.forEach(emp=>{
       const d=activeHoursDetail[emp.id]||{normal:0,overtime:0,holiday:0,total:0};
       const ct=empContractedHours[emp.id]||0;
       const pct=ct>0?Math.round(d.total/ct*100):0;
-      const statusClass=pct>105?"status-warn":pct<70?"status-err":"status-ok";
-      const statusText=pct>105?(lang==="ro"?"Atenție":"Warning"):pct<70?(lang==="ro"?"Sub norm":"Below norm"):(lang==="ro"?"Conform":"OK");
-      html+="<tr><td style='text-align:left;font-weight:600'>"+emp.name+"</td><td>"+formatHours(ct)+"h</td><td>"+formatHours(d.total)+"h ("+pct+"%)</td><td class='"+(d.overtime>0?"status-warn":"")+"'>"+(d.overtime>0?formatHours(d.overtime)+"h":"–")+"</td><td>"+(d.holiday>0?formatHours(d.holiday)+"h":"–")+"</td><td class='"+statusClass+"'>"+statusText+"</td></tr>";
+      const sc=pct>105?"warn":pct<70?"err":"ok";
+      const sl=pct>105?(lang==="ro"?"Atenție":"Warning"):pct<70?(lang==="ro"?"Sub normă":"Below"):(lang==="ro"?"Conform":"OK");
+      html+="<tr><td style='text-align:left;font-weight:600'>"+emp.name+"</td><td>"+formatHours(ct)+"h</td><td>"+formatHours(d.total)+"h ("+pct+"%)</td><td class='"+(d.overtime>0?"warn":"")+"'>"+(d.overtime>0?formatHours(d.overtime)+"h":"–")+"</td><td>"+(d.holiday>0?formatHours(d.holiday)+"h":"–")+"</td><td class='"+sc+"'>"+sl+"</td></tr>";
     });
     html+="</tbody></table>";
 
     // Footer
     html+="<div class='footer'><span>"+company.name+" · "+mn[curMonth]+" "+curYear+"</span><span>"+(lang==="ro"?"Generat cu WorkSchedulerLite":"Generated with WorkSchedulerLite")+" · "+new Date().toLocaleDateString()+"</span></div>";
-
     html+="</body></html>";
     return html;
   };
 
-
-    return <div style={{minHeight:"100vh",background:th.bg,fontFamily:F,overflow:"hidden"}}>
+  return <div style={{minHeight:"100vh",background:th.bg,fontFamily:F,overflow:"hidden"}}>
     {/* ── CRYSTAL DOCK HEADER ── */}
     <header style={{
       padding:"10px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",
