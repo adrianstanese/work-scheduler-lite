@@ -1565,30 +1565,7 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
     onUpdate({...company,workedAssignments:w});
   };
 
-  // ── Worked hours calculation (mirrors empMonthHoursDetail but from workedAssignments) ──
-  const empWorkedHoursDetail=useMemo(()=>{
-    const result={};
-    company.employees.forEach(emp=>{
-      let normalH=0,holidayH=0;
-      Object.entries(workedData).forEach(([date,dayW])=>{
-        if(dayW[emp.id]){
-          const [y,m]=date.split("-").map(Number);
-          if(y===curYear&&m-1===curMonth){
-            const isHol=!!holidays[date];
-            dayW[emp.id].forEach(({shiftId,startOverride,endOverride})=>{
-              const h=startOverride&&endOverride?shiftDuration(startOverride,endOverride):0;
-              if(isHol) holidayH+=h; else normalH+=h;
-            });
-          }
-        }
-      });
-      const contracted=empContractedHours[emp.id]||0;
-      const overtime=Math.max(0,normalH-contracted);
-      const normalCapped=Math.min(normalH,contracted);
-      result[emp.id]={normal:normalCapped,overtime,holiday:holidayH,total:normalH+holidayH};
-    });
-    return result;
-  },[company,workedData,curMonth,curYear,holidays,empContractedHours]);
+
 
   const addEmployee=()=>{
     if(!newEmpName.trim())return;
@@ -1812,7 +1789,32 @@ function Workspace({company,onUpdate,onGoHome,th,t,lang,setLang,theme,setTheme})
     const r={};Object.entries(empMonthHoursDetail).forEach(([id,d])=>{r[id]=d.total});return r;
   },[empMonthHoursDetail]);
 
-  // ── Active hours detail based on viewMode ──
+  // ── Worked hours calculation (mirrors empMonthHoursDetail but from workedAssignments) ──
+  const empWorkedHoursDetail=useMemo(()=>{
+    const result={};
+    company.employees.forEach(emp=>{
+      let normalH=0,holidayH=0;
+      Object.entries(workedData).forEach(([date,dayW])=>{
+        if(dayW[emp.id]){
+          const [y,m]=date.split("-").map(Number);
+          if(y===curYear&&m-1===curMonth){
+            const isHol=!!holidays[date];
+            dayW[emp.id].forEach(({shiftId,startOverride,endOverride})=>{
+              const h=startOverride&&endOverride?shiftDuration(startOverride,endOverride):0;
+              if(isHol) holidayH+=h; else normalH+=h;
+            });
+          }
+        }
+      });
+      const contracted=empContractedHours[emp.id]||0;
+      const overtime=Math.max(0,normalH-contracted);
+      const normalCapped=Math.min(normalH,contracted);
+      result[emp.id]={normal:normalCapped,overtime,holiday:holidayH,total:normalH+holidayH};
+    });
+    return result;
+  },[company,workedData,curMonth,curYear,holidays,empContractedHours]);
+
+    // ── Active hours detail based on viewMode ──
   const activeHoursDetail=viewMode==="worked"?empWorkedHoursDetail:empMonthHoursDetail;
 
   const openAdminSettings=()=>{
