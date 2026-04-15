@@ -1142,15 +1142,12 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
       {/* ── EMPLOYEE ROWS ── */}
       {grouped.map(([role,emps])=><div key={role}>
         {grouped.length>1&&<div style={{
-          display:"grid",gridTemplateColumns:gridCols,
+          padding:"6px 12px",
+          background:th.acS,borderBottom:`1px solid ${th.bd}`,borderTop:`1px solid ${th.bd}`,
+          fontSize:11,fontWeight:800,color:th.ac,textTransform:"uppercase",letterSpacing:"0.06em",
+          minWidth:days*82+240,
         }}>
-          <div style={{
-            gridColumn:`1 / -1`,padding:"6px 12px",
-            background:th.acS,borderBottom:`1px solid ${th.bd}`,borderTop:`1px solid ${th.bd}`,
-            fontSize:11,fontWeight:800,color:th.ac,textTransform:"uppercase",letterSpacing:"0.06em",
-          }}>
-            {role}
-          </div>
+          {role}
         </div>}
 
         {emps.map(emp=>{
