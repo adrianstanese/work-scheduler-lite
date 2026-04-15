@@ -1128,36 +1128,55 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
 
   // ── Drag-and-drop shifts between employees ──
   const dragShiftRef=useRef(null);
+  const dragLeaveRef=useRef(null);
 
   const onShiftDragStart=(e,date,empId,shiftId)=>{
     isDraggingShift.current=true;
     isPainting.current=false;
     dragShiftRef.current={date,empId,shiftId};
     e.dataTransfer.effectAllowed="move";
-    e.dataTransfer.setData("text/plain",shiftId);
+    e.dataTransfer.setData("text/plain","shift:"+shiftId);
+  };
+
+  const onLeaveDragStart=(e,date,empId,leaveId)=>{
+    isDraggingShift.current=true;
+    isPainting.current=false;
+    dragLeaveRef.current={date,empId,leaveId};
+    e.dataTransfer.effectAllowed="move";
+    e.dataTransfer.setData("text/plain","leave:"+leaveId);
   };
 
   const onCellDragOver=(e)=>{
-    if(dragShiftRef.current) e.preventDefault();
+    if(dragShiftRef.current||dragLeaveRef.current) e.preventDefault();
   };
 
   const onCellDrop=(e,targetDate,targetEmpId)=>{
     e.preventDefault();
-    const src=dragShiftRef.current;
-    if(!src)return;
-    if(!isEmpActiveOnDate(targetEmpId,targetDate))return;
-    // Don't do anything if dropped on same cell
-    if(src.date===targetDate&&src.empId===targetEmpId){dragShiftRef.current=null;isDraggingShift.current=false;return;}
-    // Remove specific shift from source
-    onRemoveShift(src.date,src.empId,src.shiftId);
-    // Assign to target
-    onAssign(targetDate,targetEmpId,src.shiftId);
-    dragShiftRef.current=null;
+    if(!isEmpActiveOnDate(targetEmpId,targetDate)){dragShiftRef.current=null;dragLeaveRef.current=null;isDraggingShift.current=false;return;}
+    // Handle shift drop
+    if(dragShiftRef.current){
+      const src=dragShiftRef.current;
+      if(!(src.date===targetDate&&src.empId===targetEmpId)){
+        onRemoveShift(src.date,src.empId,src.shiftId);
+        onAssign(targetDate,targetEmpId,src.shiftId);
+      }
+      dragShiftRef.current=null;
+    }
+    // Handle leave drop
+    if(dragLeaveRef.current){
+      const src=dragLeaveRef.current;
+      if(!(src.date===targetDate&&src.empId===targetEmpId)){
+        onRemoveLeave(src.date,src.empId);
+        onAssignLeave(targetDate,targetEmpId,src.leaveId);
+      }
+      dragLeaveRef.current=null;
+    }
     isDraggingShift.current=false;
   };
 
   const onShiftDragEnd=()=>{
     dragShiftRef.current=null;
+    dragLeaveRef.current=null;
     isDraggingShift.current=false;
   };
 
@@ -1274,7 +1293,6 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
               return <div key={d}
                 onMouseDown={(e)=>{if(e.button===0)startPaint(date,emp.id);}}
                 onMouseEnter={()=>continuePaint(date,emp.id)}
-                onClick={()=>empActive&&handleCellClick(date,emp.id)}
                 onContextMenu={e=>empActive?handleRightClick(e,date,emp.id):e.preventDefault()}
                 onDragOver={onCellDragOver}
                 onDrop={e=>onCellDrop(e,date,emp.id)}
@@ -1307,10 +1325,15 @@ function ScheduleCalendar({company,month,year,selectedShift,selectedEmp,selected
                   <div style={{color:th.t3,fontSize:7,marginTop:1}}>{sh.name}</div>
                 </div>)}
                 {/* Leave badge */}
-                {leave&&<div style={{
+                {leave&&<div
+                  draggable={isAdmin}
+                  onDragStart={e=>onLeaveDragStart(e,date,emp.id,leave.id)}
+                  onDragEnd={onShiftDragEnd}
+                  style={{
                   padding:"3px 5px",borderRadius:4,
                   background:leave.color+"15",borderLeft:`3px solid ${leave.color}`,
                   fontSize:8,fontWeight:700,color:leave.color,fontStyle:"italic",
+                  cursor:isAdmin?"grab":"default",userSelect:"none",
                 }}>{leave.short}</div>}
               </div>;
             })}
